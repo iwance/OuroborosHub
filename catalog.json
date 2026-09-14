@@ -192,19 +192,19 @@
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "d65adfeefe5700553d717fb003635709ada3c322bffbb70f01f54d807ff0f0c1",
+          "sha256": "0add14dba39d066130ed548943b84d668f80cc49c27bb5656f44023001e1b03b",
           "size": 4215
         },
         {
           "path": "plugin.py",
-          "sha256": "4f3b9b6afe1144770a5964ad075dff39c817d8aa9f4d05b4336d2f7ba99f5cbf",
-          "size": 16554
+          "sha256": "8bf72e303b5cc7697b368137d3d59c7695044e9ca2f00e16d8fe4c0e159ddaea",
+          "size": 17544
         }
       ],
       "name": "backlog_manager",
       "slug": "backlog_manager",
       "type": "extension",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "when_to_use": "User wants to inspect, triage, add, annotate, or manage Ouroboros improvement backlog items from a reviewed widget."
     },
     {
@@ -222,33 +222,33 @@
       "version": "0.5.0"
     },
     {
-      "description": "Interactive dark-glassmorphic cache observability dashboard with multi-timeframe analytics, token-weighted hit rates, cost savings, and Canvas 2D charts.",
+      "description": "Interactive cache observability dashboard with token-weighted read rates, separate request and session counts, measurement coverage, and Canvas charts.",
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "044ee2d34f57bfb139ebe443a35258dd00b9460b28ad747eb7e7afa9fde6f1d8",
-          "size": 2221
+          "sha256": "fdfd0d679ea5f32f165031fda917104edb21334e627603d694af0c279a9942fd",
+          "size": 3544
         },
         {
           "path": "plugin.py",
-          "sha256": "8bba998dc4503b67d7e8fe1cf900882bccc55e1a20f8927edc093bb6734ec809",
-          "size": 20946
+          "sha256": "7e7cb9dbd5107eb7e06e6570cefad2a84882f9afc54a9e5b64d5f2f61fb51e2b",
+          "size": 16460
         },
         {
           "path": "test_cache_efficiency.py",
-          "sha256": "fd1813a5589d3c3b9e2c3f0abc078d41294bf62f485f39797cab3ea1704144e7",
-          "size": 8170
+          "sha256": "e8be2a091b59115a80121eb1ea86f9ed14435ec5cdca7ca187914ffbd27b3be8",
+          "size": 19259
         },
         {
           "path": "widget.js",
-          "sha256": "f3b1acad8689e0c25b92002e68edd67381355e65f88e22bf239f1003f81e95ea",
-          "size": 32579
+          "sha256": "016a1806412e6e35039205456b7daa06e76d7478c797c93408f4f15a9c8aa297",
+          "size": 34492
         }
       ],
       "name": "cache_efficiency_snapshot",
       "slug": "cache_efficiency_snapshot",
       "type": "extension",
-      "version": "0.3.0"
+      "version": "0.4.0"
     },
     {
       "description": "Fully playable Classic Doom (1993) standalone 2.5D FPS raycaster extension widget with textured walls, procedural sprite enemies, authentic weapons, levels, HUD, Web Audio sound and heavy metal music synthesizer.",
@@ -306,6 +306,75 @@
       "when_to_use": "The owner wants to see, at a glance, the quota windows, limits and reset times of every authorized Claudexor account, including which facets could not be read."
     },
     {
+      "description": "Read-only context-size charts for model requests over a chosen horizon, with honest telemetry coverage.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "066b35fa1d32cc22c024032e4e861f34c922a7f2737d7d484e7440cdab92a8dc",
+          "size": 30885
+        },
+        {
+          "path": "lens_core.py",
+          "sha256": "dfc8404adf65f3dbc12caefac9171cca5e9f17017ea3ee4176b530f0ec736351",
+          "size": 48669
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "881ea7f283785060af25a8e7fe61937e6fbb4bdfb8b17009fc54db1eb3c3beb5",
+          "size": 8002
+        },
+        {
+          "path": "tests/test_lens_core.py",
+          "sha256": "2dc346d2901d8bd0facf978c5579518b0218304e5b1adc88524a513e3064f732",
+          "size": 79402
+        },
+        {
+          "path": "tests/test_plugin_routes.py",
+          "sha256": "7b5ba7b2290686d068cffb3b490526404a3330392fc2037e3c730412c75b7163",
+          "size": 24657
+        },
+        {
+          "path": "tests/test_widget_contract.py",
+          "sha256": "12333ff7ae77a9608781c0dd08cbce0a0beea0769875445cc7565134a80e4158",
+          "size": 10200
+        },
+        {
+          "path": "tests/widget_smoke.cjs",
+          "sha256": "f3c3b08adcdf86efb83b2d04010a81b0190aab61f4a7091c86f20a98d5a48411",
+          "size": 24084
+        },
+        {
+          "path": "widget.js",
+          "sha256": "d833a223d425adc9e105d31e40015737057d7ea9f8fdb98bf2700ccdb586cabd",
+          "size": 73641
+        }
+      ],
+      "name": "context-lens",
+      "slug": "context-lens",
+      "type": "extension",
+      "version": "1.1.2",
+      "when_to_use": "The owner wants to understand reported input sizes, their spread and growth within tasks."
+    },
+    {
+      "description": "Помогает выбрать клинику и врача, посмотреть свободные слоты и оформить очную запись через DocDoc API 1.0.13.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "92b9acf032ef83dd8ea7627d321a33e0096bd81125bc65d77a6e0a8f6e20da71",
+          "size": 4160
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "f0396b4445a3345429c24be01f23d40b8070983b6d2860c4652394f1835916eb",
+          "size": 18211
+        }
+      ],
+      "name": "doctor-booking-v4",
+      "slug": "doctor-booking-v4",
+      "type": "extension",
+      "version": "2.2.1"
+    },
+    {
       "description": "Web search via DuckDuckGo — free, no API key required. Returns titles, URLs, and snippets.",
       "files": [
         {
@@ -327,6 +396,41 @@
       "type": "extension",
       "version": "0.1.2",
       "when_to_use": "User asks to search the web, find information, look up facts, or research a topic — and no OpenAI key is available for web_search."
+    },
+    {
+      "description": "Public universal skill for reading and sending email via IMAP and SMTP with secure defaults.",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "806d700f08bef0d56ccf678c2482f6a186bae04b0601e41ad9f2bb7744ef2ec4",
+          "size": 5097
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "e909c8d99f32019e0b170477de14b6ed8a3d168c4b394baa65f249bb22179c1a",
+          "size": 8081
+        },
+        {
+          "path": "client.py",
+          "sha256": "4f6d1b5f5baaf9415926ab0fbe7363a94375151e02dc2924f7d1bab3856216fb",
+          "size": 39542
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "88a966a074b603076bbb63890460e3ba528016420091683480fa1180f4a1068f",
+          "size": 11396
+        },
+        {
+          "path": "test_email_skill.py",
+          "sha256": "68cd551918c05c696dd6539075ef9394edb4d54f7e7768d0d4bdf73f2351e192",
+          "size": 20625
+        }
+      ],
+      "name": "email",
+      "slug": "email",
+      "type": "extension",
+      "version": "0.1.0",
+      "when_to_use": "When the user wants to list unread emails, read email message contents, compose and send emails via standard IMAP/SMTP protocols, or test email server connectivity."
     },
     {
       "description": "GDELT Cloud geopolitical intelligence: conflict events, news stories, entity graph, energy infrastructure, macro-finance, prediction markets, and web research via MCP Progressive Discovery.",
@@ -482,6 +586,70 @@
       "type": "extension",
       "version": "0.3.1",
       "when_to_use": "The user wants web search or page extraction through Keenable, especially for fresh pages, site-scoped or date-filtered retrieval, or an LLM-extracted summary of one page."
+    },
+    {
+      "description": "Структурирует OCR-текст лабораторных анализов и объясняет отклонения; не заменяет врача или экстренную помощь.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "488e2fdcb41bf6cf24017c2dae02bada7ceaf9228b5f9485b4a3f7fbc50091e4",
+          "size": 3405
+        },
+        {
+          "path": "analyzer.py",
+          "sha256": "4fcc72c52a58f09eca94fed6410a62136961ac809f0563149a6b195fe8d3613c",
+          "size": 13093
+        },
+        {
+          "path": "models.py",
+          "sha256": "291a1cd09d30872914f10b83b3f1fc8d4adbd4440263b6592deafaa9ca14d9de",
+          "size": 2435
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "1630d28d4372d830443149b4fca6b585859c09afd89ab590709a40a5cb4b95dd",
+          "size": 9098
+        },
+        {
+          "path": "prompts/extract_sex_age.jinja2",
+          "sha256": "cb94ba314ecd76dfeab5450b8fccbc193800904a0ff37dc1e4ff8badef4699fb",
+          "size": 1984
+        },
+        {
+          "path": "prompts/lab_test_single_interpretation.jinja2",
+          "sha256": "fb0d0169a462a00d607bde53d3c75edf300622112f2ab0cb52c8675839ded4e9",
+          "size": 5333
+        },
+        {
+          "path": "prompts/lab_tests_batch_interpretation.jinja2",
+          "sha256": "10df51e119f1469172524e88c0efdf04577df8f11a22cd9ffab2d85bd06ee9cd",
+          "size": 2173
+        },
+        {
+          "path": "prompts/lab_tests_name_extraction.jinja2",
+          "sha256": "ae8b6e1de4cd779e69a6c98630fbe47f4e7bc559cad2651adab90a03d2180eb1",
+          "size": 1752
+        },
+        {
+          "path": "prompts/lab_tests_values_batch.jinja2",
+          "sha256": "44e796f3e2054af1e11b483576a6868137c2457acc6f898559ae89434c092e49",
+          "size": 1898
+        },
+        {
+          "path": "prompts/lab_tests_values_extraction.jinja2",
+          "sha256": "48378a2ed74e3fb189a6b88bfc954ec8214bfe70d6c03c74ce2aa490e4c696f9",
+          "size": 7845
+        },
+        {
+          "path": "prompts/text_classification.jinja2",
+          "sha256": "540b2fec3750008da317669aa498f492519d65f1859e0f1a01765d6f0933592c",
+          "size": 2176
+        }
+      ],
+      "name": "medical-lab-analyzer",
+      "slug": "medical-lab-analyzer",
+      "type": "extension",
+      "version": "0.2.1"
     },
     {
       "description": "Read-only atlas, document reader, authentic history browser, literal search, and evidence graph for allowlisted Ouroboros core memory, consolidated dialogue chronicles, and project knowledge. Opens on global memory; every link it draws is proven from stored bytes, with no model calls at runtime. Use to inspect memory provenance without modifying serving-process data.",
@@ -736,15 +904,18 @@
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "ec2d106c14f201e47244184fa70411d3c74159d7da2bbe984dae0d06c78601e7"
+          "sha256": "bb7d46445e49391fe9916f41d8822def0d3b58aacc6a730e8fccf1b066621099",
+          "size": 2525
         },
         {
           "path": "client.py",
-          "sha256": "8947d974fbf8593112a8756b3621133ff2609b16f3450f39476b227816218feb"
+          "sha256": "8947d974fbf8593112a8756b3621133ff2609b16f3450f39476b227816218feb",
+          "size": 2278
         },
         {
           "path": "plugin.py",
-          "sha256": "d024df9638941702758d37ae95c45579ed4b444c44cfc2694ac5161b2824a56c"
+          "sha256": "0f35b3c4c1804e436f44c0b79d902a1980f5530209f0e381d5729ba8872fa49e",
+          "size": 7360
         }
       ],
       "name": "sber-ring",
@@ -1000,6 +1171,81 @@
       "when_to_use": "The owner wants to open and fully control the current Ouroboros web interface inside the existing private Telegram bot without a domain, Cloudflare account, app-store installation, or manually copied URL."
     },
     {
+      "description": "Token Observatory — Liquid Glass dashboard for recorded Ouroboros token usage, tasks and models.",
+      "files": [
+        {
+          "path": "HANDOFF.md",
+          "sha256": "8acce4744dfc019156a267bc65a14f24515767503e9a23f0972a7d47b45f3279",
+          "size": 13038
+        },
+        {
+          "path": "README.md",
+          "sha256": "e1fbc2bef423809ba56a18686348577e75a4dd5242a380ab5afd8f0205c8e044",
+          "size": 14223
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "64e145038697101c035feaf86983f4bab0a4d8cb534c3acaccb10a5b1c341a79",
+          "size": 4443
+        },
+        {
+          "path": "accounting.py",
+          "sha256": "b22c014e7f20b18366cd7a21bdc21e5318e4c1e428779bf02d48fab6b77fda67",
+          "size": 17442
+        },
+        {
+          "path": "fixtures/numeric_snapshot.json",
+          "sha256": "75e9a418b15e27a3526277d1f4e94f70484b7a8e112509512b256172c33c01b7",
+          "size": 7043
+        },
+        {
+          "path": "ingestion.py",
+          "sha256": "238a430f6fbc5788d8bd1b7a58ad0d6dfaefe62467476c43c0cfe7c1560504fe",
+          "size": 24842
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "b44b754857e404d80eb47fbc7c3551053f74737621bdc4f0065e6c9aa9547c34",
+          "size": 12299
+        },
+        {
+          "path": "tests/oracle.py",
+          "sha256": "f6efa54452d5ff9183b3ea90bd0a36e28ad8eebab4bb52b635da8d6b34e2a71d",
+          "size": 13012
+        },
+        {
+          "path": "tests/test_accounting.py",
+          "sha256": "3360ab9ed7fff3e289912c253a9134ba8cce8d9c713676a5ee3c7a68f2d68bba",
+          "size": 24745
+        },
+        {
+          "path": "tests/test_ingestion.py",
+          "sha256": "e45537561b5d2083f02c878f2462a7e4b3b7c03edb05f1f745e988cfd6e76f29",
+          "size": 19679
+        },
+        {
+          "path": "tests/test_plugin.py",
+          "sha256": "77a621f497ea2b97f568f332b7002ee7154191ba89700251d9db5dc457ac8952",
+          "size": 25279
+        },
+        {
+          "path": "tests/widget_contract.cjs",
+          "sha256": "a3a32d7a412183c01546dae898019ac3440a42e9a7780e07571f4601143beadc",
+          "size": 21924
+        },
+        {
+          "path": "widget.js",
+          "sha256": "eea0325924990b5688cd285528ccc795f88245cfeae557a5e5cb06a1097eb630",
+          "size": 67400
+        }
+      ],
+      "name": "token-usage",
+      "slug": "token-usage",
+      "type": "extension",
+      "version": "1.1.0",
+      "when_to_use": "Inspect token usage across Ouroboros models, harnesses, projects and tasks over the retained history."
+    },
+    {
       "description": "Generate a short video clip via OpenRouter's video generation API using Seedance 2.0 (bytedance/seedance-2.0). Output is saved to the skill state directory.",
       "files": [
         {
@@ -1085,6 +1331,30 @@
       "type": "extension",
       "version": "1.3.0",
       "when_to_use": "User wants to generate a photorealistic cinematic video, film scene, documentary, live-action style video, or realistic narrative with consistent characters, Gemini multimodal quality control, and Hollywood-grade production quality. Separate from anime_studio which generates 2D anime cartoons."
+    },
+    {
+      "description": "Поиск товаров ВкусВилл, просмотр деталей (состав, КБЖУ, цена, рейтинг) и создание ссылки на корзину через официальный MCP API ВкусВилл.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "4ae59c405524536c96d9681c9daac656a7ea9f14e7203c9b7d00d7a57b138a15",
+          "size": 2236
+        },
+        {
+          "path": "client.py",
+          "sha256": "4fb24e613621ed4ba8e4658cffebee566e683522af08e8f1ddeb41fd7c96a49c",
+          "size": 4727
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "8a1a05ad5b8613d8f994cbd43b78b307c1b13fd8d0777ebcd4a1fcc1e7d3d277",
+          "size": 5945
+        }
+      ],
+      "name": "vkusvill",
+      "slug": "vkusvill",
+      "type": "extension",
+      "version": "1.0.0"
     },
     {
       "description": "Wide polished weather widget — current conditions, compact forecast, astronomy, and resilient wttr.in cache (no API key).",
