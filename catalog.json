@@ -348,6 +348,41 @@
       "when_to_use": "User asks to search the web, find information, look up facts, or research a topic — and no OpenAI key is available for web_search."
     },
     {
+      "description": "Public universal skill for reading and sending email via IMAP and SMTP with secure defaults.",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "806d700f08bef0d56ccf678c2482f6a186bae04b0601e41ad9f2bb7744ef2ec4",
+          "size": 5097
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "e909c8d99f32019e0b170477de14b6ed8a3d168c4b394baa65f249bb22179c1a",
+          "size": 8081
+        },
+        {
+          "path": "client.py",
+          "sha256": "4f6d1b5f5baaf9415926ab0fbe7363a94375151e02dc2924f7d1bab3856216fb",
+          "size": 39542
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "88a966a074b603076bbb63890460e3ba528016420091683480fa1180f4a1068f",
+          "size": 11396
+        },
+        {
+          "path": "test_email_skill.py",
+          "sha256": "68cd551918c05c696dd6539075ef9394edb4d54f7e7768d0d4bdf73f2351e192",
+          "size": 20625
+        }
+      ],
+      "name": "email",
+      "slug": "email",
+      "type": "extension",
+      "version": "0.1.0",
+      "when_to_use": "When the user wants to list unread emails, read email message contents, compose and send emails via standard IMAP/SMTP protocols, or test email server connectivity."
+    },
+    {
       "description": "GDELT Cloud geopolitical intelligence: conflict events, news stories, entity graph, energy infrastructure, macro-finance, prediction markets, and web research via MCP Progressive Discovery.",
       "files": [
         {
