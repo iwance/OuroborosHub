@@ -306,6 +306,25 @@
       "when_to_use": "The owner wants to see, at a glance, the quota windows, limits and reset times of every authorized Claudexor account, including which facets could not be read."
     },
     {
+      "description": "Помогает выбрать клинику и врача, посмотреть свободные слоты и оформить очную запись через DocDoc API 1.0.13.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "92b9acf032ef83dd8ea7627d321a33e0096bd81125bc65d77a6e0a8f6e20da71",
+          "size": 4160
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "f0396b4445a3345429c24be01f23d40b8070983b6d2860c4652394f1835916eb",
+          "size": 18211
+        }
+      ],
+      "name": "doctor-booking-v4",
+      "slug": "doctor-booking-v4",
+      "type": "extension",
+      "version": "2.2.1"
+    },
+    {
       "description": "Web search via DuckDuckGo — free, no API key required. Returns titles, URLs, and snippets.",
       "files": [
         {
@@ -482,6 +501,70 @@
       "type": "extension",
       "version": "0.3.1",
       "when_to_use": "The user wants web search or page extraction through Keenable, especially for fresh pages, site-scoped or date-filtered retrieval, or an LLM-extracted summary of one page."
+    },
+    {
+      "description": "Структурирует OCR-текст лабораторных анализов и объясняет отклонения; не заменяет врача или экстренную помощь.",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "488e2fdcb41bf6cf24017c2dae02bada7ceaf9228b5f9485b4a3f7fbc50091e4",
+          "size": 3405
+        },
+        {
+          "path": "analyzer.py",
+          "sha256": "4fcc72c52a58f09eca94fed6410a62136961ac809f0563149a6b195fe8d3613c",
+          "size": 13093
+        },
+        {
+          "path": "models.py",
+          "sha256": "291a1cd09d30872914f10b83b3f1fc8d4adbd4440263b6592deafaa9ca14d9de",
+          "size": 2435
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "1630d28d4372d830443149b4fca6b585859c09afd89ab590709a40a5cb4b95dd",
+          "size": 9098
+        },
+        {
+          "path": "prompts/extract_sex_age.jinja2",
+          "sha256": "cb94ba314ecd76dfeab5450b8fccbc193800904a0ff37dc1e4ff8badef4699fb",
+          "size": 1984
+        },
+        {
+          "path": "prompts/lab_test_single_interpretation.jinja2",
+          "sha256": "fb0d0169a462a00d607bde53d3c75edf300622112f2ab0cb52c8675839ded4e9",
+          "size": 5333
+        },
+        {
+          "path": "prompts/lab_tests_batch_interpretation.jinja2",
+          "sha256": "10df51e119f1469172524e88c0efdf04577df8f11a22cd9ffab2d85bd06ee9cd",
+          "size": 2173
+        },
+        {
+          "path": "prompts/lab_tests_name_extraction.jinja2",
+          "sha256": "ae8b6e1de4cd779e69a6c98630fbe47f4e7bc559cad2651adab90a03d2180eb1",
+          "size": 1752
+        },
+        {
+          "path": "prompts/lab_tests_values_batch.jinja2",
+          "sha256": "44e796f3e2054af1e11b483576a6868137c2457acc6f898559ae89434c092e49",
+          "size": 1898
+        },
+        {
+          "path": "prompts/lab_tests_values_extraction.jinja2",
+          "sha256": "48378a2ed74e3fb189a6b88bfc954ec8214bfe70d6c03c74ce2aa490e4c696f9",
+          "size": 7845
+        },
+        {
+          "path": "prompts/text_classification.jinja2",
+          "sha256": "540b2fec3750008da317669aa498f492519d65f1859e0f1a01765d6f0933592c",
+          "size": 2176
+        }
+      ],
+      "name": "medical-lab-analyzer",
+      "slug": "medical-lab-analyzer",
+      "type": "extension",
+      "version": "0.2.1"
     },
     {
       "description": "Generate a music clip from a text prompt via OpenRouter's Google Lyria model and play it directly inside the widget. Files are persisted to the skill's private state directory and streamed through an extension route for both inline playback and download.",
@@ -924,6 +1007,81 @@
       "when_to_use": "The owner wants to open and fully control the current Ouroboros web interface inside the existing private Telegram bot without a domain, Cloudflare account, app-store installation, or manually copied URL."
     },
     {
+      "description": "Token Observatory — Liquid Glass dashboard for recorded Ouroboros token usage, tasks and models.",
+      "files": [
+        {
+          "path": "HANDOFF.md",
+          "sha256": "8acce4744dfc019156a267bc65a14f24515767503e9a23f0972a7d47b45f3279",
+          "size": 13038
+        },
+        {
+          "path": "README.md",
+          "sha256": "e1fbc2bef423809ba56a18686348577e75a4dd5242a380ab5afd8f0205c8e044",
+          "size": 14223
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "64e145038697101c035feaf86983f4bab0a4d8cb534c3acaccb10a5b1c341a79",
+          "size": 4443
+        },
+        {
+          "path": "accounting.py",
+          "sha256": "b22c014e7f20b18366cd7a21bdc21e5318e4c1e428779bf02d48fab6b77fda67",
+          "size": 17442
+        },
+        {
+          "path": "fixtures/numeric_snapshot.json",
+          "sha256": "75e9a418b15e27a3526277d1f4e94f70484b7a8e112509512b256172c33c01b7",
+          "size": 7043
+        },
+        {
+          "path": "ingestion.py",
+          "sha256": "238a430f6fbc5788d8bd1b7a58ad0d6dfaefe62467476c43c0cfe7c1560504fe",
+          "size": 24842
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "b44b754857e404d80eb47fbc7c3551053f74737621bdc4f0065e6c9aa9547c34",
+          "size": 12299
+        },
+        {
+          "path": "tests/oracle.py",
+          "sha256": "f6efa54452d5ff9183b3ea90bd0a36e28ad8eebab4bb52b635da8d6b34e2a71d",
+          "size": 13012
+        },
+        {
+          "path": "tests/test_accounting.py",
+          "sha256": "3360ab9ed7fff3e289912c253a9134ba8cce8d9c713676a5ee3c7a68f2d68bba",
+          "size": 24745
+        },
+        {
+          "path": "tests/test_ingestion.py",
+          "sha256": "e45537561b5d2083f02c878f2462a7e4b3b7c03edb05f1f745e988cfd6e76f29",
+          "size": 19679
+        },
+        {
+          "path": "tests/test_plugin.py",
+          "sha256": "77a621f497ea2b97f568f332b7002ee7154191ba89700251d9db5dc457ac8952",
+          "size": 25279
+        },
+        {
+          "path": "tests/widget_contract.cjs",
+          "sha256": "a3a32d7a412183c01546dae898019ac3440a42e9a7780e07571f4601143beadc",
+          "size": 21924
+        },
+        {
+          "path": "widget.js",
+          "sha256": "eea0325924990b5688cd285528ccc795f88245cfeae557a5e5cb06a1097eb630",
+          "size": 67400
+        }
+      ],
+      "name": "token-usage",
+      "slug": "token-usage",
+      "type": "extension",
+      "version": "1.1.0",
+      "when_to_use": "Inspect token usage across Ouroboros models, harnesses, projects and tasks over the retained history."
+    },
+    {
       "description": "Generate a short video clip via OpenRouter's video generation API using Seedance 2.0 (bytedance/seedance-2.0). Output is saved to the skill state directory.",
       "files": [
         {
@@ -1094,89 +1252,6 @@
       "type": "script",
       "version": "0.1.0",
       "when_to_use": "The user attached a Word document and asks to read, summarize, search, compare, or revise its contents, or asks to create a Word or DOCX file."
-    },
-    {
-      "slug": "doctor-booking-v4",
-      "name": "doctor-booking-v4",
-      "version": "2.2.1",
-      "type": "extension",
-      "files": [
-        {
-          "path": "SKILL.md",
-          "sha256": "92b9acf032ef83dd8ea7627d321a33e0096bd81125bc65d77a6e0a8f6e20da71",
-          "size": 4160
-        },
-        {
-          "path": "plugin.py",
-          "sha256": "f0396b4445a3345429c24be01f23d40b8070983b6d2860c4652394f1835916eb",
-          "size": 18211
-        }
-      ],
-      "description": "Помогает выбрать клинику и врача, посмотреть свободные слоты и оформить очную запись через DocDoc API 1.0.13."
-    },
-    {
-      "slug": "medical-lab-analyzer",
-      "name": "medical-lab-analyzer",
-      "version": "0.2.1",
-      "type": "extension",
-      "files": [
-        {
-          "path": "SKILL.md",
-          "sha256": "488e2fdcb41bf6cf24017c2dae02bada7ceaf9228b5f9485b4a3f7fbc50091e4",
-          "size": 3405
-        },
-        {
-          "path": "analyzer.py",
-          "sha256": "4fcc72c52a58f09eca94fed6410a62136961ac809f0563149a6b195fe8d3613c",
-          "size": 13093
-        },
-        {
-          "path": "models.py",
-          "sha256": "291a1cd09d30872914f10b83b3f1fc8d4adbd4440263b6592deafaa9ca14d9de",
-          "size": 2435
-        },
-        {
-          "path": "plugin.py",
-          "sha256": "1630d28d4372d830443149b4fca6b585859c09afd89ab590709a40a5cb4b95dd",
-          "size": 9098
-        },
-        {
-          "path": "prompts/extract_sex_age.jinja2",
-          "sha256": "cb94ba314ecd76dfeab5450b8fccbc193800904a0ff37dc1e4ff8badef4699fb",
-          "size": 1984
-        },
-        {
-          "path": "prompts/lab_test_single_interpretation.jinja2",
-          "sha256": "fb0d0169a462a00d607bde53d3c75edf300622112f2ab0cb52c8675839ded4e9",
-          "size": 5333
-        },
-        {
-          "path": "prompts/lab_tests_batch_interpretation.jinja2",
-          "sha256": "10df51e119f1469172524e88c0efdf04577df8f11a22cd9ffab2d85bd06ee9cd",
-          "size": 2173
-        },
-        {
-          "path": "prompts/lab_tests_name_extraction.jinja2",
-          "sha256": "ae8b6e1de4cd779e69a6c98630fbe47f4e7bc559cad2651adab90a03d2180eb1",
-          "size": 1752
-        },
-        {
-          "path": "prompts/lab_tests_values_batch.jinja2",
-          "sha256": "44e796f3e2054af1e11b483576a6868137c2457acc6f898559ae89434c092e49",
-          "size": 1898
-        },
-        {
-          "path": "prompts/lab_tests_values_extraction.jinja2",
-          "sha256": "48378a2ed74e3fb189a6b88bfc954ec8214bfe70d6c03c74ce2aa490e4c696f9",
-          "size": 7845
-        },
-        {
-          "path": "prompts/text_classification.jinja2",
-          "sha256": "540b2fec3750008da317669aa498f492519d65f1859e0f1a01765d6f0933592c",
-          "size": 2176
-        }
-      ],
-      "description": "Структурирует OCR-текст лабораторных анализов и объясняет отклонения; не заменяет врача или экстренную помощь."
     }
   ]
 }
