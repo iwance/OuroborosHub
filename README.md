@@ -98,6 +98,22 @@ https://raw.githubusercontent.com/razzant/OuroborosHub/main/skills/<slug>/<path>
 
 `SKILL.md` must be present for every skill.
 
+Before submitting a change, check the published catalog without rewriting it:
+
+```bash
+python -m pip install PyYAML pytest
+python scripts/build_catalog.py --check
+python -m unittest discover -s tests -v
+PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider -q skills/cache_efficiency_snapshot/test_cache_efficiency.py
+```
+
+The check verifies the catalog structure, installation-name collisions and every
+declared file's SHA-256 and byte size when supplied. Slugs are compared using
+Ouroboros's canonical installation names; display names may be shared. Curated
+metadata, formatting and intentionally unlisted development files are preserved.
+The same validation runs before normal catalog generation writes its result.
+Pull requests and pushes to `main` run these checks in CI.
+
 ## Review and trust model
 
 OuroborosHub is curated, but hub membership does not bypass review.

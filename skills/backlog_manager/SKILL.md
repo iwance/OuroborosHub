@@ -1,10 +1,11 @@
 ---
 name: backlog_manager
 description: Interactive Improvement Backlog widget with kanban status management, filtering data, notes, and local item creation without mutating Ouroboros core memory directly.
-version: 0.1.0
+version: 0.1.1
 type: extension
 runtime: python3
 entry: plugin.py
+plugin_api: "2.0"
 permissions: [route, widget, tool]
 env_from_settings: []
 when_to_use: User wants to inspect, triage, add, annotate, or manage Ouroboros improvement backlog items from a reviewed widget.

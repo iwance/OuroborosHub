@@ -1,46 +1,174 @@
-"""Bounded, statistically honest cache-efficiency widget.
+"""High-performance, multi-timeframe cache efficiency analytics engine for Ouroboros.
 
-The widget deliberately reports only a sampled suffix of the append-only usage
-ledger. One normalized sample projection is the sole authority for the headline,
-tables, and both declarative Chart.js views.
+Provides incremental ledger ingestion with thread-safe caching, token-weighted
+cache-read measurements with explicit coverage, and an HTTP endpoint for the module widget.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import math
-from collections import OrderedDict
-from datetime import datetime, timezone
+import os
+import threading
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-LEDGER_FALLBACK = Path("state") / "usage_attempts.jsonl"
-MAX_TAIL_BYTES = 192 * 1024
-MAX_PARSED_LINES = 2_000
-MAX_BUCKETS = 8
-MAX_RECENT_ROWS = 5
-MAX_MODEL_ROWS = 4
-MAX_DIAGNOSTICS = 7
-POLL_INTERVAL_MS = 10_000
-POLL_MAX_TICKS = 3
 TERMINAL_STATE = "settled"
+MAX_MODELS_RETURNED = 25
+MAX_BUCKETS_RETURNED = 120
+MAX_CACHE_RETAIN_DAYS = 30
+BASELINE_KINDS = frozenset({"usage_baseline", "usage_baseline_group"})
 
-_DATA_DIR: Path | None = None
-
-
-def _ledger_rel() -> Path:
-    try:
-        from ouroboros import usage_accounting
-
-        value = getattr(usage_accounting, "LEDGER_REL", None)
-        if value:
-            return Path(value)
-    except Exception:
-        pass
-    return LEDGER_FALLBACK
+_DATA_DIR: Optional[Path] = None
 
 
-def _runtime_data_dir(api: Any) -> Path | None:
+class LedgerCache:
+    """Thread-safe incremental cache for the usage attempts JSONL ledger."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.file_identity: Optional[Tuple[int, int]] = None  # (inode, dev)
+        self.last_mtime_ns: int = 0
+        self.last_size: int = 0
+        self.records: List[Dict[str, Any]] = []
+        self.raw_stats: Dict[str, int] = {
+            "total_lines_read": 0,
+            "malformed_lines": 0,
+            "non_settled_lines": 0,
+            "valid_records": 0,
+            "compacted_records_skipped": 0,
+        }
+
+    def clear(self) -> None:
+        with self._lock:
+            self.file_identity = None
+            self.last_mtime_ns = 0
+            self.last_size = 0
+            self.records = []
+            self.raw_stats = {
+                "total_lines_read": 0,
+                "malformed_lines": 0,
+                "non_settled_lines": 0,
+                "valid_records": 0,
+                "compacted_records_skipped": 0,
+            }
+
+    def update(self, ledger_path: Path) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        with self._lock:
+            meta: Dict[str, Any] = {
+                "exists": ledger_path.is_file(),
+                "ledger_path": str(ledger_path),
+                "read_error": None,
+                "raw_stats": dict(self.raw_stats),
+            }
+            if not meta["exists"]:
+                meta["read_error"] = "file_not_found"
+                return list(self.records), meta
+
+            try:
+                stat = ledger_path.stat()
+            except OSError as exc:
+                meta["read_error"] = f"stat_error:{type(exc).__name__}"
+                return list(self.records), meta
+
+            current_ident = (stat.st_ino, stat.st_dev)
+            current_mtime = stat.st_mtime_ns
+            current_size = stat.st_size
+            meta["file_size_bytes"] = current_size
+
+            # If file replaced or truncated, do a full reload
+            if (
+                self.file_identity != current_ident
+                or current_size < self.last_size
+                or self.file_identity is None
+            ):
+                self.records = []
+                self.last_size = 0
+                self.raw_stats = {
+                    "total_lines_read": 0,
+                    "malformed_lines": 0,
+                    "non_settled_lines": 0,
+                    "valid_records": 0,
+                    "compacted_records_skipped": 0,
+                }
+                self.file_identity = current_ident
+
+            # If no change in size/mtime and we already have records, return cached copy
+            if current_size == self.last_size and current_mtime == self.last_mtime_ns and self.records:
+                meta["raw_stats"] = dict(self.raw_stats)
+                return list(self.records), meta
+
+            # Read only new bytes
+            start_offset = self.last_size
+            try:
+                with ledger_path.open("rb") as f:
+                    if start_offset > 0:
+                        f.seek(start_offset)
+                    new_bytes = f.read()
+            except OSError as exc:
+                meta["read_error"] = f"read_error:{type(exc).__name__}"
+                meta["raw_stats"] = dict(self.raw_stats)
+                return list(self.records), meta
+
+            if not new_bytes:
+                meta["raw_stats"] = dict(self.raw_stats)
+                return list(self.records), meta
+
+            # Find the last newline so we never parse a torn trailing line
+            cut = new_bytes.rfind(b"\n")
+            if cut < 0:
+                # Incomplete partial line: do not advance offset yet
+                meta["raw_stats"] = dict(self.raw_stats)
+                return list(self.records), meta
+
+            complete_bytes = new_bytes[: cut + 1]
+            self.last_size = start_offset + len(complete_bytes)
+            self.last_mtime_ns = current_mtime
+
+            lines = complete_bytes.decode("utf-8", errors="replace").splitlines()
+            for line in lines:
+                if not line.strip():
+                    continue
+                self.raw_stats["total_lines_read"] += 1
+                try:
+                    row = json.loads(line)
+                except Exception:
+                    self.raw_stats["malformed_lines"] += 1
+                    continue
+
+                if not isinstance(row, dict):
+                    self.raw_stats["malformed_lines"] += 1
+                    continue
+
+                state = str(row.get("state") or "").lower()
+                if state != TERMINAL_STATE:
+                    self.raw_stats["non_settled_lines"] += 1
+                    continue
+
+                # Compaction rows (the settled ``usage_baseline`` header and its
+                # folded ``usage_baseline_group`` rows) carry compaction time,
+                # not per-request timestamps; the core reader skips them too.
+                if str(row.get("kind") or "") in BASELINE_KINDS:
+                    self.raw_stats["compacted_records_skipped"] += 1
+                    continue
+                parsed = _normalize_record(row)
+                if parsed is not None:
+                    self.records.append(parsed)
+                    self.raw_stats["valid_records"] += 1
+
+            # Bounded memory retention: prune records older than MAX_CACHE_RETAIN_DAYS
+            if len(self.records) > 20000:
+                cutoff_dt = datetime.now(timezone.utc) - timedelta(days=MAX_CACHE_RETAIN_DAYS)
+                self.records = [r for r in self.records if r["ts"] >= cutoff_dt]
+
+            meta["raw_stats"] = dict(self.raw_stats)
+            return list(self.records), meta
+
+
+_CACHE = LedgerCache()
+
+
+def _runtime_data_dir(api: Any) -> Optional[Path]:
     try:
         info = api.get_runtime_info()
     except Exception:
@@ -49,319 +177,182 @@ def _runtime_data_dir(api: Any) -> Path | None:
     return Path(raw).expanduser() if isinstance(raw, str) and raw.strip() else None
 
 
-def _lookup(row: Mapping[str, Any], *keys: str) -> Any:
-    for key in keys:
-        value: Any = row
-        for part in key.split("."):
-            if not isinstance(value, Mapping):
-                value = None
-                break
-            value = value.get(part)
-        if value is not None:
-            return value
+def _clean_model_display_name(model_name: str) -> str:
+    """Short label only; exact provider/model/kind remain the grouping identity."""
+    return str(model_name or "unknown").rsplit("/", 1)[-1].rsplit("::", 1)[-1]
+
+
+def _parse_timestamp(row: Mapping[str, Any]) -> Optional[datetime]:
+    for key in ("ts", "settled_at", "finished_at", "updated_at", "timestamp"):
+        val = row.get(key)
+        if isinstance(val, (int, float)):
+            try:
+                return datetime.fromtimestamp(val, tz=timezone.utc)
+            except (ValueError, OSError, OverflowError):
+                continue
+        if isinstance(val, str) and val.strip():
+            try:
+                dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+                return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+            except ValueError:
+                continue
     return None
 
 
-def _whole_number(value: Any) -> int | None:
-    if isinstance(value, bool) or value is None:
+def _token_count(value: Any) -> Optional[int]:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    try:
-        number = float(value)
-    except (TypeError, ValueError, OverflowError):
+    if not math.isfinite(value) or value < 0 or int(value) != value:
         return None
-    if not math.isfinite(number) or number < 0 or not number.is_integer():
+    return int(value)
+
+
+def _normalize_record(row: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
+    stamp = _parse_timestamp(row)
+    if stamp is None:
         return None
-    return int(number)
+    kind = str(row.get("kind") or "attempt")  # the core ledger reader's default
+    provider = str(row.get("provider") or "unknown")
+    model = str(row.get("model") or row.get("resolved_model") or "unknown")
 
-
-def _timestamp(row: Mapping[str, Any]) -> datetime | None:
-    raw = _lookup(row, "ts", "settled_at", "finished_at", "updated_at", "timestamp")
-    if not isinstance(raw, str):
-        return None
-    try:
-        value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
-
-
-def _read_suffix(path: Path) -> tuple[list[str], dict[str, Any]]:
-    coverage: dict[str, Any] = {
-        "exists": path.is_file(), "bytes_total": 0, "bytes_read": 0,
-        "suffix_only": False, "partial_first_line_discarded": False,
-        "whole_suffix_discarded": False,
-    }
-    if not coverage["exists"]:
-        return [], coverage
-    try:
-        size = path.stat().st_size
-        offset = max(0, size - MAX_TAIL_BYTES)
-        coverage.update(bytes_total=size, bytes_read=min(size, MAX_TAIL_BYTES), suffix_only=offset > 0)
-        with path.open("rb") as handle:
-            if offset:
-                handle.seek(offset - 1)
-                preceding = handle.read(1)
-                handle.seek(offset)
-                blob = handle.read(MAX_TAIL_BYTES)
-                if preceding != b"\n":
-                    newline = blob.find(b"\n")
-                    coverage["partial_first_line_discarded"] = newline >= 0
-                    coverage["whole_suffix_discarded"] = newline < 0
-                    blob = blob[newline + 1 :] if newline >= 0 else b""
-            else:
-                blob = handle.read(MAX_TAIL_BYTES)
-    except OSError as exc:
-        coverage["read_error"] = type(exc).__name__
-        return [], coverage
-    lines = blob.decode("utf-8", errors="replace").splitlines()
-    coverage["tail_lines_seen"] = len(lines)
-    coverage["line_cap_applied"] = len(lines) > MAX_PARSED_LINES
-    return lines[-MAX_PARSED_LINES:], coverage
-
-
-def _latest_attempts(lines: Iterable[str]) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Keep the latest observed record for each id; raw failures remain separate."""
-    latest: "OrderedDict[str, tuple[int, dict[str, Any]]]" = OrderedDict()
-    stats = {"rows_seen": 0, "malformed": 0, "non_object": 0, "missing_id": 0, "duplicates_discarded": 0}
-    for index, line in enumerate(lines):
-        if not line.strip():
-            continue
-        stats["rows_seen"] += 1
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            stats["malformed"] += 1
-            continue
-        if not isinstance(row, dict):
-            stats["non_object"] += 1
-            continue
-        attempt_id = _lookup(row, "attempt_id")
-        if attempt_id is None or not str(attempt_id).strip():
-            stats["missing_id"] += 1
-            continue
-        key = str(attempt_id)
-        if key in latest:
-            stats["duplicates_discarded"] += 1
-        latest[key] = (index, row)
-    return [row for _, row in sorted(latest.values(), key=lambda item: item[0])], stats
-
-
-def _percent(numerator: int, denominator: int) -> float | None:
-    return round(100 * numerator / denominator, 2) if denominator else None
-
-
-def _unavailable(message: str, coverage: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        "status": "unavailable",
-        "summary": {"cache_read_rate": None, "valid_samples": 0, "cached_tokens_millions": None, "prompt_tokens_millions": None},
-        "window_rows": [{"key": key, "value": value} for key, value in coverage.items()],
-        "quality_rows": [], "recent_rows": [], "model_rows": [],
-        "trend": {"labels": [], "datasets": []},
-        "composition": {"labels": [], "datasets": []},
-        "diagnostics_md": f"- {message}",
-        "integrity": {"ledger_unavailable": True},
-    }
-
-
-def _sample_rows(rows: Iterable[Mapping[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Classify each deduplicated record once and return comparable observations.
-
-    A sample with a known cache measurement contributes to the weighted rate;
-    an otherwise usable sample with no cache measurement contributes only to the
-    composition chart's explicit unknown-token stack.
-    """
-    quality = {
-        "nonterminal": 0, "missing_timestamp": 0, "no_denominator": 0,
-        "unknown_cache": 0, "invalid_tokens": 0, "valid_samples": 0,
-    }
-    samples: list[dict[str, Any]] = []
-    for row in rows:
-        if str(_lookup(row, "state") or "").lower() != TERMINAL_STATE:
-            quality["nonterminal"] += 1
-            continue
-        stamp = _timestamp(row)
-        if stamp is None:
-            quality["missing_timestamp"] += 1
-            continue
-        prompt = _whole_number(_lookup(row, "prompt_tokens", "usage.prompt_tokens", "input_tokens"))
-        if prompt is None or prompt <= 0:
-            quality["no_denominator"] += 1
-            continue
-        raw_cached = _lookup(row, "cached_tokens", "usage.cached_tokens", "cache_read_input_tokens")
-        cached = _whole_number(raw_cached)
-        if raw_cached is None:
-            quality["unknown_cache"] += 1
-        elif cached is None or cached > prompt:
-            quality["invalid_tokens"] += 1
-            continue
-        else:
-            quality["valid_samples"] += 1
-        samples.append({
-            "at": stamp,
-            "model": str(_lookup(row, "model") or "unknown")[:120],
-            "prompt_tokens": prompt,
-            "cached_tokens": cached,
-        })
-    return samples, quality
-
-
-def _bucket_rows(samples: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
-    """Create bounded chronological buckets at a truthful observed-window scale."""
-    sample_list = list(samples)
-    if not sample_list:
-        return []
-    oldest = min(sample["at"] for sample in sample_list)
-    newest = max(sample["at"] for sample in sample_list)
-    span_seconds = (newest - oldest).total_seconds()
-    if span_seconds <= 2 * 60 * 60:
-        minutes = 15
-    elif span_seconds <= 2 * 24 * 60 * 60:
-        minutes = 60
+    # The additive object is authoritative, including its unknown fields.
+    if "input_token_usage" in row:
+        usage = row["input_token_usage"]
+        usage = usage if isinstance(usage, Mapping) else {}
+        prompt = _token_count(usage.get("total_tokens"))
+        cached = _token_count(usage.get("cache_read_tokens"))
+        write = _token_count(usage.get("cache_write_tokens"))
+    elif kind == "attempt" or (
+        kind == "subscription_session" and provider == "codex"
+        and row.get("subscription_route") == "codex"
+    ):
+        # Physical attempts are already canonical. Legacy native Codex sessions
+        # report inclusive input and cache reads; Claude/Cursor combined reads
+        # and creation in the old cached field, so cannot be reconstructed here.
+        usage = row.get("usage") if isinstance(row.get("usage"), Mapping) else {}
+        prompt = _token_count(row.get("prompt_tokens", usage.get("prompt_tokens")))
+        cached = _token_count(row.get("cached_tokens", usage.get("cached_tokens")))
+        write = _token_count(row.get("cache_write_tokens", usage.get("cache_write_tokens")))
     else:
-        minutes = 24 * 60
-    grouped: dict[str, dict[str, Any]] = {}
-    for sample in sample_list:
-        stamp = sample["at"]
-        if minutes == 24 * 60:
-            label = stamp.strftime("%Y-%m-%d UTC")
-        else:
-            bucket_minute = (stamp.minute // minutes) * minutes
-            label = stamp.replace(minute=bucket_minute, second=0, microsecond=0).strftime("%Y-%m-%d %H:%M UTC")
-        bucket = grouped.setdefault(label, {"label": label, "prompt": 0, "cached": 0, "unknown": 0, "valid": 0, "samples": 0})
-        prompt = int(sample["prompt_tokens"])
-        bucket["samples"] += 1
-        if sample["cached_tokens"] is None:
-            bucket["unknown"] += prompt
-        else:
-            bucket["prompt"] += prompt
-            bucket["cached"] += int(sample["cached_tokens"])
-            bucket["valid"] += 1
-    buckets = [grouped[key] for key in sorted(grouped)[-MAX_BUCKETS:]]
-    for bucket in buckets:
-        bucket["uncached"] = bucket["prompt"] - bucket["cached"]
-        bucket["rate"] = _percent(bucket["cached"], bucket["prompt"])
-    return buckets
+        prompt = cached = write = None
 
-
-def _chart_payload(buckets: list[Mapping[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
-    labels = [str(bucket["label"]) for bucket in buckets]
-    trend = {
-        "labels": labels,
-        "datasets": [
-            {"label": "Cache-read rate (%)", "data": [bucket["rate"] for bucket in buckets]},
-        ],
-    }
-    composition = {
-        "labels": labels,
-        "datasets": [
-            {"label": "Cached prompt tokens", "data": [bucket["cached"] for bucket in buckets]},
-            {"label": "Uncached prompt tokens", "data": [bucket["uncached"] for bucket in buckets]},
-            {"label": "Unknown cache measurement", "data": [bucket["unknown"] for bucket in buckets]},
-        ],
-    }
-    return trend, composition
-
-
-def project_ledger(path: Path) -> dict[str, Any]:
-    """Return one complete fixed-cardinality snapshot from a bounded suffix."""
-    lines, coverage = _read_suffix(path)
-    if not coverage.get("exists"):
-        return _unavailable("Usage ledger is not available yet; no cache metric can be calculated.", coverage)
-    if coverage.get("read_error"):
-        return _unavailable(f"Usage ledger could not be read ({coverage['read_error']}).", coverage)
-
-    rows, raw_stats = _latest_attempts(lines)
-    samples, quality = _sample_rows(rows)
-    buckets = _bucket_rows(samples)
-    trend, composition = _chart_payload(buckets)
-    comparable = [sample for sample in samples if sample["cached_tokens"] is not None]
-    cached_total = sum(int(sample["cached_tokens"] or 0) for sample in comparable)
-    prompt_total = sum(int(sample["prompt_tokens"]) for sample in comparable)
-    oldest = min((sample["at"] for sample in samples), default=None)
-    newest = max((sample["at"] for sample in samples), default=None)
-
-    models: dict[str, dict[str, int | str]] = {}
-    for sample in comparable:
-        model = str(sample["model"])
-        item = models.setdefault(model, {"model": model, "cached": 0, "prompt": 0, "samples": 0})
-        item["cached"] = int(item["cached"]) + int(sample["cached_tokens"] or 0)
-        item["prompt"] = int(item["prompt"]) + int(sample["prompt_tokens"])
-        item["samples"] = int(item["samples"]) + 1
-    model_rows = [
-        {"model": item["model"], "cache_read_rate": _percent(int(item["cached"]), int(item["prompt"])), "prompt_tokens": item["prompt"], "samples": item["samples"]}
-        for item in sorted(models.values(), key=lambda value: (int(value["prompt"]), str(value["model"])), reverse=True)[:MAX_MODEL_ROWS]
-    ]
-    recent_rows = [
-        {"at": sample["at"].strftime("%Y-%m-%d %H:%M UTC"), "model": sample["model"], "prompt_tokens": sample["prompt_tokens"], "cache": "unknown" if sample["cached_tokens"] is None else _percent(int(sample["cached_tokens"]), int(sample["prompt_tokens"]))}
-        for sample in samples[-MAX_RECENT_ROWS:]
-    ]
-    quality_rows = [
-        {"key": "Malformed JSONL rows", "value": raw_stats["malformed"]},
-        {"key": "Duplicate rows discarded", "value": raw_stats["duplicates_discarded"]},
-        {"key": "Non-terminal attempts", "value": quality["nonterminal"]},
-        {"key": "Missing UTC timestamp", "value": quality["missing_timestamp"]},
-        {"key": "No prompt-token denominator", "value": quality["no_denominator"]},
-        {"key": "Unknown cache measurement", "value": quality["unknown_cache"]},
-        {"key": "Invalid token relationship", "value": quality["invalid_tokens"]},
-    ]
-    diagnostics = []
-    if coverage["suffix_only"]:
-        diagnostics.append(f"Observed suffix only: {coverage['bytes_read']:,} of {coverage['bytes_total']:,} ledger bytes.")
-    if coverage["partial_first_line_discarded"]:
-        diagnostics.append("Partial first suffix line was discarded, not counted as malformed.")
-    if coverage["whole_suffix_discarded"]:
-        diagnostics.append("The bounded suffix contained no complete JSONL line and was discarded; no cache metric is available from this read.")
-    if coverage.get("line_cap_applied"):
-        diagnostics.append(f"Line cap applied: parsed the last {MAX_PARSED_LINES:,} of {coverage['tail_lines_seen']:,} suffix lines.")
-    if not prompt_total:
-        diagnostics.append("No comparable prompt-token denominator: cache-read rate is unavailable, not 0%.")
-    if quality["unknown_cache"]:
-        diagnostics.append("Unknown cache measurements are kept outside the cache-rate denominator and shown separately in composition.")
-    diagnostics = diagnostics[:MAX_DIAGNOSTICS]
-    window_rows = [
-        {"key": "Observed bytes", "value": coverage["bytes_read"]},
-        {"key": "Suffix only", "value": bool(coverage["suffix_only"])},
-        {"key": "Whole suffix discarded", "value": bool(coverage["whole_suffix_discarded"])},
-        {"key": "Rows inspected", "value": raw_stats["rows_seen"]},
-        {"key": "Line cap applied", "value": bool(coverage.get("line_cap_applied"))},
-        {"key": "Valid cache samples", "value": quality["valid_samples"]},
-        {"key": "Cached prompt tokens (exact)", "value": cached_total},
-        {"key": "Prompt-token denominator (exact)", "value": prompt_total},
-        {"key": "Observed UTC window", "value": f"{oldest.isoformat() if oldest else '—'} → {newest.isoformat() if newest else '—'}"},
-    ]
+    if prompt is not None and cached is not None and cached > prompt:
+        cached = None  # Inconsistent measurements are unknown, never clipped or guessed.
+    measured = prompt is not None and cached is not None
     return {
-        "status": "done",
-        "summary": {"cache_read_rate": _percent(cached_total, prompt_total), "valid_samples": quality["valid_samples"], "cached_tokens_millions": round(cached_total / 1_000_000, 2), "prompt_tokens_millions": round(prompt_total / 1_000_000, 2)},
-        "window_rows": window_rows,
-        "quality_rows": quality_rows,
-        "recent_rows": recent_rows,
-        "model_rows": model_rows,
-        "trend": trend,
-        "composition": composition,
-        "diagnostics_md": "\n".join(f"- {line}" for line in diagnostics) or "- No data-quality warnings in the observed suffix.",
-        "integrity": {**raw_stats, **quality, "bucket_count": len(buckets), "max_buckets": MAX_BUCKETS, "chart_or_canvas_used": True},
+        "ts": stamp, "kind": kind, "provider": provider, "model": model,
+        "display_name": _clean_model_display_name(model),
+        "prompt_tokens": prompt, "cached_tokens": cached, "cache_write_tokens": write,
+        "measured": measured, "eligible": measured and prompt > 0,
+        "uncached_tokens": prompt - cached if measured else None,
     }
 
 
-def _render() -> dict[str, Any]:
+def _aggregate(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """One arithmetic owner for headlines, route rows and time buckets."""
+    totals = [r["prompt_tokens"] for r in records if r["prompt_tokens"] is not None]
+    reads = [r["cached_tokens"] for r in records if r["cached_tokens"] is not None]
+    eligible = [r for r in records if r["eligible"]]
+    prompt = sum(r["prompt_tokens"] for r in eligible)
+    cached = sum(r["cached_tokens"] for r in eligible)
     return {
-        "kind": "declarative", "schema_version": 1, "span": 2,
-        "components": [
-            {"id": "snapshot-poll", "type": "poll", "route": "data", "target": "result", "auto_start": True, "interval_ms": POLL_INTERVAL_MS, "max_ticks": POLL_MAX_TICKS, "label": "Refresh snapshot"},
-            {"id": "summary", "type": "group", "title": "Observed cache efficiency", "description": "Token-weighted cache-read rate in the bounded ledger suffix — not lifetime efficiency.", "layout": "grid", "columns": 2, "target": "result", "components": [
-                {"id": "cache-read-rate", "type": "metric", "label": "Cache-read rate", "path": "summary.cache_read_rate", "unit": "%", "precision": 2},
-                {"id": "valid-samples", "type": "metric", "label": "Valid cache samples", "path": "summary.valid_samples", "precision": 0},
-                {"id": "cached-tokens", "type": "metric", "label": "Cached tokens (M)", "path": "summary.cached_tokens_millions", "precision": 2, "tone": "success"},
-                {"id": "prompt-denominator", "type": "metric", "label": "Prompt denominator (M)", "path": "summary.prompt_tokens_millions", "precision": 2},
-            ]},
-            {"id": "trend-chart", "type": "chart", "target": "result", "path": "trend", "chart_type": "line", "aria_label": "Token-weighted cache-read rate by observed UTC time bucket", "label": "Cache-read rate by observed UTC time bucket", "unit": "%"},
-            {"id": "composition-chart", "type": "chart", "target": "result", "path": "composition", "chart_type": "bar", "aria_label": "Cached, uncached, and unknown-cache prompt tokens by observed UTC time bucket", "label": "Prompt-token composition by observed UTC time bucket", "unit": "tokens"},
-            {"id": "window", "type": "key_value", "target": "result", "path": "window_rows"},
-            {"id": "quality", "type": "table", "target": "result", "path": "quality_rows", "columns": [{"label": "Data-quality fact", "path": "key"}, {"label": "Count", "path": "value"}]},
-            {"id": "recent", "type": "table", "target": "result", "path": "recent_rows", "columns": [{"label": "Observed at", "path": "at"}, {"label": "Model", "path": "model"}, {"label": "Prompt tokens", "path": "prompt_tokens"}, {"label": "Cache rate", "path": "cache"}]},
-            {"id": "models", "type": "table", "target": "result", "path": "model_rows", "columns": [{"label": "Model", "path": "model"}, {"label": "Cache-read rate", "path": "cache_read_rate"}, {"label": "Prompt tokens", "path": "prompt_tokens"}, {"label": "Samples", "path": "samples"}]},
-            {"id": "diagnostics", "type": "markdown", "target": "result", "path": "diagnostics_md"},
-        ],
+        "total_records": len(records),
+        "request_count": sum(r["kind"] == "attempt" for r in records),
+        "session_count": sum(r["kind"] == "subscription_session" for r in records),
+        "other_count": sum(r["kind"] not in ("attempt", "subscription_session") for r in records),
+        "prompt_tokens": sum(totals) if totals else None,
+        "cached_tokens": sum(reads) if reads else None,
+        "eligible_prompt_tokens": prompt,
+        "eligible_cached_tokens": cached,
+        "uncached_tokens": prompt - cached,
+        "unknown_prompt_tokens": sum(totals) - prompt,
+        "cache_read_rate": round(cached / prompt * 100, 2) if prompt else None,
+        "measured_records": sum(r["measured"] for r in records),
+        "rate_records": len(eligible),
+        "unknown_total_records": len(records) - len(totals),
+        "unknown_read_records": len(records) - len(reads),
+        "zero_volume_records": sum(r["measured"] and r["prompt_tokens"] == 0 for r in records),
+    }
+
+
+def _get_timeframe_bounds(tf: str, now: datetime) -> Tuple[datetime, timedelta]:
+    if tf == "1H":
+        return now - timedelta(hours=1), timedelta(minutes=5)
+    if tf == "6H":
+        return now - timedelta(hours=6), timedelta(minutes=30)
+    if tf == "7D":
+        return now - timedelta(days=7), timedelta(hours=6)
+    return now - timedelta(hours=24), timedelta(hours=1)
+
+
+def calculate_analytics(
+    records: List[Dict[str, Any]],
+    timeframe: str = "24H",
+    meta: Optional[Dict[str, Any]] = None,
+    *,
+    now: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    tf = str(timeframe or "24H").upper().strip()
+    if tf not in ("1H", "6H", "24H", "7D", "ALL"):
+        tf = "24H"
+    now = now or datetime.now(timezone.utc)
+    start, step = _get_timeframe_bounds(tf, now)
+    if tf == "ALL":
+        start = min((r["ts"] for r in records if r["ts"] < now), default=now)
+        span = (now - start).total_seconds()
+        step = timedelta(hours=1 if span <= 86400 else 6 if span <= 7 * 86400 else 12 if span <= 30 * 86400 else 24)
+    window = [r for r in records if start <= r["ts"] < now]
+    summary = _aggregate(window)
+
+    # Half-open intervals contain each observation once, including boundaries.
+    # ALL also retains empty intervals, so the chart cannot bridge unobserved time.
+    count = math.ceil((now - start).total_seconds() / step.total_seconds())
+    omitted = max(0, count - MAX_BUCKETS_RETURNED)
+    bucket_records: Dict[int, List[Dict[str, Any]]] = {i: [] for i in range(omitted, count)}
+    groups: Dict[Tuple[str, str, str], List[Dict[str, Any]]] = {}
+    for record in window:
+        index = int((record["ts"] - start).total_seconds() // step.total_seconds())
+        if index in bucket_records:
+            bucket_records[index].append(record)
+        key = (record["provider"], record["model"], record["kind"])
+        groups.setdefault(key, []).append(record)
+
+    buckets = []
+    for index, members in bucket_records.items():
+        stamp = start + index * step
+        aggregate = _aggregate(members)
+        buckets.append({
+            **aggregate, "ts": stamp.isoformat(),
+            "label": stamp.strftime("%Y-%m-%d %H:%M" if tf == "ALL" else "%m-%d %H:%M"),
+            "rate": aggregate["cache_read_rate"],
+            "prompt": aggregate["prompt_tokens"],
+            "cached": aggregate["eligible_cached_tokens"],
+            "uncached": aggregate["uncached_tokens"],
+            "unknown": aggregate["unknown_prompt_tokens"],
+        })
+
+    models = []
+    for (provider, model, kind), members in groups.items():
+        aggregate = _aggregate(members)
+        models.append({
+            **aggregate, "provider": provider, "model": model, "kind": kind,
+            "display_name": _clean_model_display_name(model), "rate": aggregate["cache_read_rate"],
+        })
+    models.sort(key=lambda row: row["prompt_tokens"] or 0, reverse=True)
+    quality = dict(meta or {})
+    quality.update({
+        "settled_records_total": len(records), "window_records": len(window),
+        "oldest_ts": min((r["ts"] for r in window), default=None),
+        "newest_ts": max((r["ts"] for r in window), default=None),
+        "models_omitted": max(0, len(models) - MAX_MODELS_RETURNED),
+        "buckets_omitted": omitted,
+        "coverage": "Retained ledger records only; archived and compacted history is not reconstructed.",
+    })
+    for key in ("oldest_ts", "newest_ts"):
+        quality[key] = quality[key].isoformat() if quality[key] else None
+    return {
+        "status": "degraded" if quality.get("read_error") else "ok", "timeframe": tf,
+        "summary": summary, "buckets": buckets, "models": models[:MAX_MODELS_RETURNED], "quality": quality,
     }
 
 
@@ -369,10 +360,30 @@ def register(api: Any) -> None:
     global _DATA_DIR
     _DATA_DIR = _runtime_data_dir(api)
 
-    async def route(_request: Any) -> dict[str, Any]:
-        if _DATA_DIR is None:
-            return _unavailable("Runtime data directory is unavailable.", {})
-        return await asyncio.to_thread(project_ledger, _DATA_DIR / _ledger_rel())
+    def route_handler(request: Any = None) -> Dict[str, Any]:
+        global _DATA_DIR
+        data_dir = _DATA_DIR or _runtime_data_dir(api) or Path(os.path.expanduser("~/Ouroboros/data"))
+        ledger_path = data_dir / "state" / "usage_attempts.jsonl"
 
-    api.register_route("data", route, methods=("GET",))
-    api.register_ui_tab("cache_efficiency", "Cache Efficiency Snapshot", icon="activity", render=_render())
+        timeframe = "24H"
+        if request is not None:
+            if hasattr(request, "query_params"):
+                timeframe = request.query_params.get("timeframe", "24H")
+            elif isinstance(request, Mapping) and "query_params" in request:
+                timeframe = request["query_params"].get("timeframe", "24H")
+
+        records, meta = _CACHE.update(ledger_path)
+        return calculate_analytics(records, timeframe=timeframe, meta=meta)
+
+    api.register_route("data", route_handler, methods=("GET",))
+    api.register_ui_tab(
+        "cache_efficiency",
+        "Cache Efficiency Snapshot",
+        icon="activity",
+        render={"kind": "module", "entry": "widget.js", "span": 2},
+    )
+    if hasattr(api, "on_unload") and callable(api.on_unload):
+        try:
+            api.on_unload(lambda: _CACHE.clear())
+        except Exception:
+            pass

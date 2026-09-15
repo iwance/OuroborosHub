@@ -1,0 +1,957 @@
+/**
+ * Cache Efficiency Snapshot — Standalone Module Widget
+ * Dark Glassmorphic Dashboard with Canvas 2D Charts and Multi-Timeframe Analytics.
+ * Zero external CDN dependencies.
+ */
+(function () {
+  const root = document.getElementById('root');
+  if (!root) return;
+
+  // Injected Scoped CSS
+  const style = document.createElement('style');
+  style.textContent = `
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, #root {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'SF Pro Display', Inter, sans-serif;
+      background: #0d0b0f;
+      color: #f8fafc;
+      width: 100%;
+      min-height: 100%;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    #root { padding: 16px 18px; }
+    /* Layout */
+    .ces-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Glass Card */
+    .ces-card {
+      background: rgba(23, 18, 28, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(240, 122, 134, 0.14);
+      border-radius: 12px;
+      padding: 14px 18px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .ces-card:hover {
+      border-color: rgba(240, 122, 134, 0.28);
+      box-shadow: 0 10px 36px rgba(232, 93, 111, 0.08);
+    }
+
+    /* Error Banner */
+    .ces-error-banner {
+      display: none;
+      background: rgba(244, 63, 94, 0.16);
+      border: 1px solid rgba(244, 63, 94, 0.45);
+      color: #fca5a5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    /* Header */
+    .ces-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .ces-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .ces-pulse {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 12px #34d399;
+      animation: ces-pulse-glow 2s infinite ease-in-out;
+    }
+    @keyframes ces-pulse-glow {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 16px #34d399; }
+    }
+    .ces-pulse.error {
+      background: #f43f5e;
+      box-shadow: 0 0 12px #f43f5e;
+      animation: none;
+    }
+    .ces-title {
+      font-size: 1.12rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ces-subtitle {
+      font-size: 0.76rem;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* Controls */
+    .ces-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .ces-timeframe-group {
+      display: inline-flex;
+      background: rgba(13, 11, 15, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 3px;
+    }
+    .ces-tf-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .ces-tf-btn:hover {
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .ces-tf-btn.active {
+      color: #f8fafc;
+      background: rgba(232, 93, 111, 0.22);
+      border: 1px solid rgba(232, 93, 111, 0.4);
+      box-shadow: 0 0 10px rgba(232, 93, 111, 0.25);
+    }
+
+    .ces-btn {
+      background: rgba(23, 18, 28, 0.9);
+      border: 1px solid rgba(240, 122, 134, 0.2);
+      color: #f8fafc;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .ces-btn:hover {
+      background: rgba(232, 93, 111, 0.15);
+      border-color: rgba(232, 93, 111, 0.45);
+    }
+    .ces-btn:active { transform: scale(0.97); }
+    .ces-btn.spinning svg {
+      animation: ces-spin 0.8s linear infinite;
+    }
+    @keyframes ces-spin { 100% { transform: rotate(360deg); } }
+
+    /* KPI Grid */
+    .ces-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .ces-kpi-card {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .ces-kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 4px;
+      border-radius: 4px 0 0 4px;
+    }
+    .ces-kpi-card.crimson::before { background: #e85d6f; box-shadow: 0 0 8px #e85d6f; }
+    .ces-kpi-card.cyan::before { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
+    .ces-kpi-card.emerald::before { background: #34d399; box-shadow: 0 0 8px #34d399; }
+    .ces-kpi-card.violet::before { background: #a855f7; box-shadow: 0 0 8px #a855f7; }
+
+    .ces-kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ces-kpi-label {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .ces-kpi-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+    }
+    .ces-kpi-val {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+    .ces-kpi-unit {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .ces-kpi-sub {
+      font-size: 0.74rem;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Chart Section */
+    .ces-chart-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ces-chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .ces-chart-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .ces-chart-mode-group {
+      display: inline-flex;
+      background: rgba(13, 11, 15, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 2px;
+    }
+    .ces-chart-mode-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .ces-chart-mode-btn.active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+    }
+
+    .ces-canvas-wrap {
+      position: relative;
+      width: 100%;
+      height: 230px;
+      background: rgba(13, 11, 15, 0.5);
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    .ces-tooltip {
+      position: absolute;
+      pointer-events: none;
+      display: none;
+      background: rgba(17, 13, 22, 0.94);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(240, 122, 134, 0.3);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.74rem;
+      color: #f8fafc;
+      z-index: 100;
+      white-space: nowrap;
+      transform: translate(-50%, -110%);
+      transition: opacity 0.1s ease;
+    }
+
+    /* Model Table */
+    .ces-table td:first-child { min-width: 170px; max-width: 290px; overflow-wrap: anywhere; }
+    .ces-table-wrap {
+      overflow-x: auto;
+      margin-top: 6px;
+    }
+    table.ces-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      text-align: left;
+    }
+    table.ces-table th {
+      padding: 8px 10px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-size: 0.68rem;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      user-select: none;
+    }
+    table.ces-table th:hover { color: #f8fafc; }
+    table.ces-table td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+    }
+    table.ces-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .ces-bar-wrap {
+      width: 100%;
+      min-width: 90px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .ces-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #e85d6f, #38bdf8);
+    }
+
+    /* Diagnostics Drawer */
+    details.ces-drawer {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 8px;
+    }
+    summary.ces-drawer-summary {
+      font-size: 0.76rem;
+      font-weight: 600;
+      color: #94a3b8;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    summary.ces-drawer-summary::-webkit-details-marker { display: none; }
+    summary.ces-drawer-summary:hover { color: #f8fafc; }
+    .ces-drawer-content {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      font-size: 0.74rem;
+      color: #94a3b8;
+    }
+    .ces-diag-item {
+      background: rgba(13, 11, 15, 0.6);
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+    .ces-diag-item b { color: #f8fafc; }
+    .ces-note { color: #94a3b8; font-size: 12px; line-height: 1.5; }
+    .ces-route { display: block; color: #94a3b8; font-size: 12px; font-weight: 400; overflow-wrap: anywhere; margin-top: 4px; }
+    .ces-kpi-sub { flex-wrap: wrap; line-height: 1.4; }
+    .ces-tooltip { max-width: calc(100% - 16px); white-space: normal; transform: none; }
+    @media (max-width: 540px) {
+      #root { padding: 10px; }
+      .ces-card { padding: 12px; }
+      .ces-kpi-grid { grid-template-columns: 1fr; }
+      .ces-controls { width: 100%; }
+      .ces-tf-btn { padding: 7px 9px; }
+      .ces-table { min-width: 650px; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // App State
+  const state = {
+    timeframe: '24H',
+    chartMode: 'trend',
+    autoRefreshSec: 30,
+    pollTimer: null,
+    data: null,
+    loading: false,
+    errorMessage: '',
+    reqSequence: 0,
+    sortCol: 'prompt_tokens',
+    sortAsc: false,
+    disposed: false,
+  };
+
+  // Helpers
+  function formatTokens(val) {
+    if (val === null || val === undefined || !Number.isFinite(val)) return '—';
+    if (val >= 1e9) return (val / 1e9).toFixed(2) + ' B';
+    if (val >= 1e6) return (val / 1e6).toFixed(2) + ' M';
+    if (val >= 1e3) return (val / 1e3).toFixed(1) + ' K';
+    return Number(val).toLocaleString();
+  }
+
+  function formatRate(value) {
+    return Number.isFinite(value) ? `${value.toFixed(2)}%` : 'Unavailable';
+  }
+
+  function escapeHtml(value) {
+    const node = document.createElement('span');
+    node.textContent = String(value);
+    return node.innerHTML;
+  }
+
+  function counted(value, unit) {
+    return `${value.toLocaleString()} ${unit}${value === 1 ? '' : 's'}`;
+  }
+
+  function recordUnits(value) {
+    const units = [counted(value.request_count, 'request'), counted(value.session_count, 'session')];
+    if (value.other_count) units.push(counted(value.other_count, 'other record'));
+    return units.join(' · ');
+  }
+
+  function coverageText(value) {
+    return `${value.measured_records.toLocaleString()} / ${counted(value.total_records, 'record')} measured`;
+  }
+
+  // Render Skeleton Layout
+  root.innerHTML = `
+    <div class="ces-container">
+      <div class="ces-error-banner" id="errorBanner">
+        <span id="errorText">Failed to load live metrics</span>
+        <button class="ces-btn" id="retryBtn" style="padding:4px 10px; font-size:0.72rem;">Retry</button>
+      </div>
+
+      <div class="ces-card ces-header">
+        <div class="ces-title-group">
+          <div class="ces-pulse" id="livePulse"></div>
+          <div>
+            <div class="ces-title">Cache Efficiency Snapshot</div>
+            <div class="ces-subtitle" id="timeRangeSub">Measured input tokens, cache reads and coverage</div>
+          </div>
+        </div>
+        <div class="ces-controls">
+          <div class="ces-timeframe-group" id="tfGroup">
+            <button class="ces-tf-btn" data-tf="1H">1H</button>
+            <button class="ces-tf-btn" data-tf="6H">6H</button>
+            <button class="ces-tf-btn active" data-tf="24H">24H</button>
+            <button class="ces-tf-btn" data-tf="7D">7D</button>
+            <button class="ces-tf-btn" data-tf="ALL">ALL</button>
+          </div>
+          <button class="ces-btn" id="refreshBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="ces-kpi-grid">
+        <div class="ces-card ces-kpi-card crimson">
+          <div class="ces-kpi-header">
+            <span class="ces-kpi-label">Cache Read Rate</span>
+            <span class="ces-kpi-badge" id="rateBadge">Token-Weighted</span>
+          </div>
+          <div class="ces-kpi-val"><span id="kpiRate">—</span></div>
+          <div class="ces-kpi-sub" id="kpiRateSub">Measured input only</div>
+        </div>
+
+        <div class="ces-card ces-kpi-card cyan">
+          <div class="ces-kpi-header">
+            <span class="ces-kpi-label">Known Cache Reads</span>
+            <span class="ces-kpi-badge" id="tokensRatioBadge">Tokens</span>
+          </div>
+          <div class="ces-kpi-val"><span id="kpiCacheReads">--</span></div>
+          <div class="ces-kpi-sub" id="kpiCachedSub">Cache-read measurements</div>
+        </div>
+
+        <div class="ces-card ces-kpi-card emerald">
+          <div class="ces-kpi-header">
+            <span class="ces-kpi-label">Measurement Coverage</span>
+            <span class="ces-kpi-badge" style="color:#34d399">Records</span>
+          </div>
+          <div class="ces-kpi-val"><span id="kpiCoverage">--</span></div>
+          <div class="ces-kpi-sub" id="kpiCoverageSub">Unknown measurements stay unknown</div>
+        </div>
+
+        <div class="ces-card ces-kpi-card violet">
+          <div class="ces-kpi-header">
+            <span class="ces-kpi-label">Known Input Volume</span>
+            <span class="ces-kpi-badge" id="recordsBadge">— records</span>
+          </div>
+          <div class="ces-kpi-val"><span id="kpiVolume">--</span></div>
+          <div class="ces-kpi-sub" id="kpiVolumeSub">Requests and sessions counted separately</div>
+        </div>
+      </div>
+
+      <div class="ces-card ces-chart-card">
+        <div class="ces-chart-header">
+          <div class="ces-chart-title" id="chartTitle">Cache-Read Rate Trend (%)</div>
+          <div class="ces-chart-mode-group">
+            <button class="ces-chart-mode-btn active" data-mode="trend">📈 Rate Trend</button>
+            <button class="ces-chart-mode-btn" data-mode="volume">📊 Token Volume</button>
+          </div>
+        </div>
+        <div class="ces-canvas-wrap" id="canvasWrap">
+          <canvas id="chartCanvas" tabindex="0" role="img" aria-label="Cache measurements by time. Use arrow keys or select a point to inspect."></canvas>
+          <div class="ces-tooltip" id="chartTooltip"></div>
+        </div>
+        <div class="ces-note" id="chartLegend">Gaps mean no comparable measurement. A measured zero is 0%.</div>
+        <div class="ces-note" id="chartReading" aria-live="polite">Select a point to inspect its measurements.</div>
+      </div>
+
+      <div class="ces-card">
+        <div class="ces-chart-title" style="margin-bottom:10px;">Model and Route Measurements</div>
+        <div class="ces-note">Session totals may span attempts and models; their label names the final reported model. Rates use only records with both input and cache-read measurements.</div>
+        <div class="ces-table-wrap">
+          <table class="ces-table" id="modelsTable">
+            <thead>
+              <tr>
+                <th data-sort="display_name">Model</th>
+                <th data-sort="total_records">Recorded Units</th>
+                <th data-sort="prompt_tokens">Known Input</th>
+                <th data-sort="cached_tokens">Known Cache Reads</th>
+                <th data-sort="rate">Read Rate</th>
+                <th data-sort="measured_records">Coverage</th>
+              </tr>
+            </thead>
+            <tbody id="modelsTbody">
+              <tr><td colspan="6" style="text-align:center; color:#64748b;">Loading analytics data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details class="ces-drawer" style="margin-top:14px;">
+          <summary class="ces-drawer-summary">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            Data Quality & System Diagnostics
+          </summary>
+          <div class="ces-drawer-content" id="diagnosticsContent">
+            <div class="ces-diag-item">Window Samples: <b id="diagWindow">--</b></div>
+            <div class="ces-diag-item">Retained Settled Records: <b id="diagTotal">--</b></div>
+            <div class="ces-diag-item">Window Span: <b id="diagSpan">--</b></div>
+            <div class="ces-diag-item">Omitted Rows / Buckets: <b id="diagOmitted">--</b></div>
+          </div>
+          <div class="ces-note" id="retainedCoverage" style="margin-top:8px;"></div>
+        </details>
+      </div>
+    </div>
+  `;
+
+  // Canvas & Interaction Engine
+  const canvas = document.getElementById('chartCanvas');
+  const ctx = canvas.getContext('2d');
+  const canvasWrap = document.getElementById('canvasWrap');
+  const tooltip = document.getElementById('chartTooltip');
+
+  let mouseX = -1;
+  let isHovering = false;
+
+  function resizeCanvas() {
+    const rect = canvasWrap.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    if (typeof ctx.resetTransform === 'function') {
+      ctx.resetTransform();
+    } else {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    ctx.scale(dpr, dpr);
+    renderChart();
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+
+  function inspectPointer(e) {
+    const rect = canvasWrap.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    isHovering = true;
+    renderChart();
+  }
+  canvasWrap.addEventListener('mousemove', inspectPointer);
+  canvasWrap.addEventListener('click', inspectPointer);
+  canvas.addEventListener('keydown', (event) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const count = state.data?.buckets?.length || 0;
+    if (!count) return;
+    // Step by whole bins on the same centres both charts draw (see renderTrendChart).
+    const chartW = canvasWrap.getBoundingClientRect().width - 65;
+    const current = mouseX < 0 ? -1 : Math.round((mouseX - 45) / chartW * count - 0.5);
+    const next = Math.max(0, Math.min(count - 1, current + (event.key === 'ArrowRight' ? 1 : -1)));
+    mouseX = 45 + (next + 0.5) * chartW / count;
+    isHovering = true;
+    renderChart();
+  });
+
+  function clearInspection() {
+    isHovering = false;
+    mouseX = -1;
+    tooltip.style.display = 'none';
+    document.getElementById('chartReading').textContent = 'Select a point to inspect its measurements.';
+  }
+
+  canvasWrap.addEventListener('mouseleave', () => {
+    clearInspection();
+    renderChart();
+  });
+
+  function renderChart() {
+    const rect = canvasWrap.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (!state.data || !state.data.buckets || state.data.buckets.length === 0) {
+      // Nothing left to inspect: a stale reading would describe a vanished bin.
+      clearInspection();
+      ctx.fillStyle = '#64748b';
+      ctx.font = '12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(state.errorMessage ? 'Data unavailable: ' + state.errorMessage : 'No activity records in this timeframe', w / 2, h / 2);
+      return;
+    }
+
+    const buckets = state.data.buckets;
+    const padding = { top: 20, right: 20, bottom: 26, left: 45 };
+    const chartW = w - padding.left - padding.right;
+    const chartH = h - padding.top - padding.bottom;
+
+    if (state.chartMode === 'trend') {
+      renderTrendChart(buckets, padding, chartW, chartH, w, h);
+    } else {
+      renderVolumeChart(buckets, padding, chartW, chartH, w, h);
+    }
+  }
+
+  function drawAxes(buckets, points, pad, cw, ch, w, h, maximum, percentage) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'right';
+    for (let index = 0; index <= 4; index++) {
+      const y = pad.top + ch - index / 4 * ch;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, y);
+      ctx.lineTo(pad.left + cw, y);
+      ctx.stroke();
+      ctx.fillText(percentage ? `${index * 25}%` : formatTokens(maximum * index / 4), pad.left - 6, y + 3);
+    }
+    ctx.textAlign = 'center';
+    const labelStep = Math.max(1, Math.ceil(buckets.length / Math.max(1, Math.floor(cw / 120))));
+    for (let index = 0; index < buckets.length; index += labelStep) {
+      const x = Math.max(75, Math.min(w - 65, points[index].x));
+      ctx.fillText(buckets[index].label, x, h - 8);
+    }
+  }
+
+  function inspectChart(points, pad, cw, ch) {
+    if (!isHovering || !points.length) return;
+    const closest = points.reduce((best, point) => Math.abs(mouseX - point.x) < Math.abs(mouseX - best.x) ? point : best);
+    const data = closest.data;
+    ctx.strokeStyle = 'rgba(240, 122, 134, 0.45)';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(closest.x, pad.top);
+    ctx.lineTo(closest.x, pad.top + ch);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const measured = Number.isFinite(data.rate) ? ` (${formatTokens(data.eligible_cached_tokens)} / ${formatTokens(data.eligible_prompt_tokens)} measured)` : '';
+    const detail = data.total_records === 0 ? 'No activity' : `${formatRate(data.rate)}${measured} · ${coverageText(data)} · ${recordUnits(data)}`;
+    const unknown = `${counted(data.unknown_total_records, 'record')} with unknown input; ${data.unknown_read_records} with unknown cache reads`;
+    document.getElementById('chartReading').textContent = `${data.label}: ${detail}. ${unknown}.`;
+    tooltip.innerHTML = `<b>${escapeHtml(data.label)}</b><br>${escapeHtml(detail)}<br>Known input: ${formatTokens(data.prompt_tokens)}<br>Known cache reads: ${formatTokens(data.cached_tokens)}<br>${escapeHtml(unknown)}`;
+    tooltip.style.display = 'block';
+    const width = tooltip.offsetWidth;
+    tooltip.style.left = `${Math.max(8, Math.min(closest.x - width / 2, canvasWrap.clientWidth - width - 8))}px`;
+    tooltip.style.top = '8px';
+  }
+
+  function renderTrendChart(buckets, pad, cw, ch, w, h) {
+    const points = buckets.map((data, index) => ({
+      x: pad.left + (index + 0.5) * cw / buckets.length,
+      y: Number.isFinite(data.rate) ? pad.top + ch - data.rate / 100 * ch : null,
+      data,
+    }));
+    drawAxes(buckets, points, pad, cw, ch, w, h, 100, true);
+    // Connect only adjacent measured bins; unavailable bins break the path.
+    ctx.beginPath();
+    let previous = null;
+    for (const point of points) {
+      if (point.y === null) { previous = null; continue; }
+      if (previous) ctx.lineTo(point.x, point.y);
+      else ctx.moveTo(point.x, point.y);
+      previous = point;
+    }
+    ctx.strokeStyle = '#e85d6f';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    for (const point of points) {
+      if (point.y === null) continue;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#0d0b0f';
+      ctx.fill();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    if (!points.some(point => point.y !== null)) {
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      ctx.fillText('No comparable cache measurements', pad.left + cw / 2, pad.top + ch / 2);
+    }
+    inspectChart(points, pad, cw, ch);
+  }
+
+  function renderVolumeChart(buckets, pad, cw, ch, w, h) {
+    const maximum = Math.max(...buckets.map(bucket => bucket.prompt || 0), 1);
+    const step = cw / buckets.length;
+    const points = buckets.map((data, index) => ({x: pad.left + (index + 0.5) * step, data}));
+    drawAxes(buckets, points, pad, cw, ch, w, h, maximum, false);
+    buckets.forEach((bucket, index) => {
+      let y = pad.top + ch;
+      for (const [value, color] of [[bucket.cached, '#34d399'], [bucket.uncached, '#64748b'], [bucket.unknown, '#c69245']]) {
+        const height = value / maximum * ch;
+        y -= height;
+        ctx.fillStyle = color;
+        ctx.fillRect(points[index].x - step * 0.32, y, step * 0.64, height);
+      }
+    });
+    inspectChart(points, pad, cw, ch);
+  }
+
+  // Data Fetching
+  async function fetchData() {
+    if (state.disposed) return;
+    const seq = ++state.reqSequence;
+    state.loading = true;
+    const btn = document.getElementById('refreshBtn');
+    const pulse = document.getElementById('livePulse');
+    const errorBanner = document.getElementById('errorBanner');
+    const errorText = document.getElementById('errorText');
+
+    if (btn) btn.classList.add('spinning');
+
+    try {
+      const resp = await window.fetch(`/api/extensions/cache_efficiency_snapshot/data?timeframe=${state.timeframe}`);
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+      }
+      const json = await resp.json();
+
+      if (seq === state.reqSequence) {
+        state.data = json;
+        state.errorMessage = '';
+        if (errorBanner) errorBanner.style.display = 'none';
+        if (pulse) pulse.classList.remove('error');
+        updateUI();
+      }
+    } catch (err) {
+      console.error('[CacheEfficiency] Fetch error:', err);
+      if (seq === state.reqSequence) {
+        state.errorMessage = err.message || 'Connection failed';
+        if (errorBanner) {
+          errorBanner.style.display = 'flex';
+          if (errorText) errorText.textContent = `Error fetching data: ${state.errorMessage} (showing last known data)`;
+        }
+        if (pulse) pulse.classList.add('error');
+      }
+    } finally {
+      if (seq === state.reqSequence) {
+        state.loading = false;
+        if (btn) btn.classList.remove('spinning');
+      }
+    }
+  }
+
+  function updateUI() {
+    if (!state.data || !state.data.summary) return;
+    const s = state.data.summary;
+    const q = state.data.quality || {};
+    const errorBanner = document.getElementById('errorBanner');
+    const errorText = document.getElementById('errorText');
+    const pulse = document.getElementById('livePulse');
+
+    if (state.data.status === 'degraded' || q.read_error) {
+      if (errorBanner) {
+        errorBanner.style.display = 'flex';
+        if (errorText) errorText.textContent = `Warning: Ledger state degraded (${q.read_error || 'partial read'}). Data may be incomplete.`;
+      }
+      if (pulse) pulse.classList.add('error');
+    }
+
+    // Rates use a matching measured subset; known token sums disclose missing records.
+    document.getElementById('kpiRate').textContent = formatRate(s.cache_read_rate);
+    document.getElementById('kpiRateSub').textContent = Number.isFinite(s.cache_read_rate)
+      ? `${formatTokens(s.eligible_cached_tokens)} cache reads / ${formatTokens(s.eligible_prompt_tokens)} input tokens in ${counted(s.rate_records, 'record')}`
+      : 'No record has both a positive input total and a cache-read measurement';
+    document.getElementById('kpiCacheReads').textContent = formatTokens(s.cached_tokens);
+    document.getElementById('tokensRatioBadge').textContent = `${s.unknown_read_records} unknown`;
+    document.getElementById('kpiCachedSub').textContent = 'Reported cache reads; unknown records excluded';
+    document.getElementById('kpiCoverage').textContent = `${s.measured_records} / ${s.total_records}`;
+    document.getElementById('kpiCoverageSub').textContent = `Records with both measurements · ${s.zero_volume_records} have zero input`;
+    document.getElementById('kpiVolume').textContent = formatTokens(s.prompt_tokens);
+    document.getElementById('recordsBadge').textContent = `${s.unknown_total_records} unknown`;
+    document.getElementById('kpiVolumeSub').textContent = recordUnits(s);
+    document.getElementById('timeRangeSub').textContent = `${state.data.timeframe === 'ALL' ? 'All retained records' : state.data.timeframe + ' window'} · measured input tokens and cache reads`;
+    document.getElementById('diagWindow').textContent = `${q.window_records || 0} records`;
+    document.getElementById('diagTotal').textContent = `${q.settled_records_total || 0} records`;
+    document.getElementById('diagOmitted').textContent = `${q.models_omitted || 0} rows / ${q.buckets_omitted || 0} buckets`;
+    document.getElementById('diagSpan').textContent = q.oldest_ts && q.newest_ts ? `${q.oldest_ts.slice(0,10)} → ${q.newest_ts.slice(0,10)}` : 'No activity';
+    document.getElementById('retainedCoverage').textContent = `${q.coverage || ''} Compacted summaries skipped: ${q.raw_stats?.compacted_records_skipped || 0}.`;
+
+    // A poll keeps the selected point; renderChart re-inspects the nearest bin.
+    renderTable();
+    renderChart();
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('modelsTbody');
+    if (!tbody || !state.data || !state.data.models) return;
+
+    const models = [...state.data.models];
+    models.sort((a, b) => {
+      let va = a[state.sortCol];
+      let vb = b[state.sortCol];
+      if (va === null) return vb === null ? 0 : 1;
+      if (vb === null) return -1;
+      if (typeof va === 'string') return state.sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+      return state.sortAsc ? (va - vb) : (vb - va);
+    });
+
+    if (models.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b;">No model activity in this timeframe</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = models.map(model => `
+      <tr>
+        <td style="font-weight:600; color:#f8fafc;">
+          ${escapeHtml(model.model)}
+          <span class="ces-route">${escapeHtml(model.provider)} · ${model.kind === 'subscription_session' ? 'Session aggregate · final reported model' : escapeHtml(model.kind)}</span>
+          ${model.rate === null ? '' : `<div class="ces-bar-wrap"><div class="ces-bar-fill" style="width:${model.rate}%"></div></div>`}
+        </td>
+        <td>${counted(model.total_records, model.kind === 'attempt' ? 'request' : model.kind === 'subscription_session' ? 'session' : 'record')}</td>
+        <td>${formatTokens(model.prompt_tokens)}</td>
+        <td style="color:#38bdf8">${formatTokens(model.cached_tokens)}</td>
+        <td><b style="color:#e85d6f">${formatRate(model.rate)}</b><span class="ces-route">${model.rate === null ? 'No comparable input' : `${formatTokens(model.eligible_cached_tokens)} / ${formatTokens(model.eligible_prompt_tokens)} measured`}</span></td>
+        <td>${model.measured_records} / ${model.total_records}<span class="ces-route">${model.unknown_total_records} unknown input · ${model.unknown_read_records} unknown reads</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // Event Listeners
+  document.getElementById('tfGroup').addEventListener('click', (e) => {
+    if (e.target.dataset.tf) {
+      document.querySelectorAll('#tfGroup .ces-tf-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      state.timeframe = e.target.dataset.tf;
+      clearInspection();
+      fetchData();
+    }
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    fetchData();
+  });
+
+  const retryBtn = document.getElementById('retryBtn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      fetchData();
+    });
+  }
+
+  document.querySelector('.ces-chart-mode-group').addEventListener('click', (e) => {
+    if (e.target.dataset.mode) {
+      document.querySelectorAll('.ces-chart-mode-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      state.chartMode = e.target.dataset.mode;
+      clearInspection();
+      document.getElementById('chartTitle').textContent = state.chartMode === 'trend' ? 'Cache-Read Rate Trend (%)' : 'Token Volume Composition';
+      document.getElementById('chartLegend').textContent = state.chartMode === 'trend' ? 'Gaps mean no comparable measurement. A measured zero is 0%.' : 'Green: cache reads · Slate: other input · Amber: input with unknown cache reads. Unknown input volumes cannot be drawn.';
+      renderChart();
+    }
+  });
+
+  document.querySelectorAll('table.ces-table th').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (state.sortCol === col) {
+        state.sortAsc = !state.sortAsc;
+      } else {
+        state.sortCol = col;
+        state.sortAsc = false;
+      }
+      renderTable();
+    });
+  });
+
+  // Polling Lifecycle
+  function startPolling() {
+    stopPolling();
+    if (state.autoRefreshSec > 0) {
+      state.pollTimer = setInterval(fetchData, state.autoRefreshSec * 1000);
+    }
+  }
+
+  function stopPolling() {
+    if (state.pollTimer) {
+      clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+  }
+
+  // Widget Disposal Hook
+  window.__ouroWidgetOnDispose(function () {
+    state.disposed = true;
+    state.reqSequence += 1;
+    stopPolling();
+    window.removeEventListener('resize', resizeCanvas);
+  });
+
+  // Initial Load
+  resizeCanvas();
+  fetchData();
+  startPolling();
+})();
