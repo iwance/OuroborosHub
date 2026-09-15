@@ -332,7 +332,11 @@ class LoopbackPresenceHostAdapter:
                 raise HostContractError("Presence work is not completed")
         else:
             raise HostContractError("Unknown presence reference type")
-        text = str(payload.get("text") or "")
+        text = (
+            str(payload.get("text") or "")
+            if self._outcome(payload) == "message"
+            else ""
+        )
         return HostDelivery((text,)) if text.strip() else HostDelivery()
 
     async def aclose(self) -> None:

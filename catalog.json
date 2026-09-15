@@ -1298,8 +1298,8 @@
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "12c7617fbba2beac908664adba82087af1c8d455a191db0eb0ba4b43ff961ae8",
-          "size": 3562
+          "sha256": "42a6ea798df1451f06c9c03d69b7768d4355ecacc00f195c07eadc8dd4c51e3a",
+          "size": 4087
         },
         {
           "path": "lib/__init__.py",
@@ -1313,13 +1313,13 @@
         },
         {
           "path": "lib/host_adapter.py",
-          "sha256": "e09da7292b30ba57d51b3d84da4c640bff6d3e4efe60ce8e4e6297e8391a7df9",
-          "size": 13193
+          "sha256": "13e01ee1190eb41484499357f7eb2de671641930bc835125cd3b89f6fceffa4b",
+          "size": 13288
         },
         {
           "path": "lib/runtime.py",
-          "sha256": "b067119c77d71bbc95a876cb1be80901689e7810405c59600d88232577eeb3cf",
-          "size": 9752
+          "sha256": "79632d30c3a293f5c8f13c26fbe85e5bc9f31eee8c25672b1b2a4cc97409fa23",
+          "size": 10029
         },
         {
           "path": "lib/slack_api.py",
@@ -1333,8 +1333,8 @@
         },
         {
           "path": "lib/store.py",
-          "sha256": "9da6f4746973a714ce9bd3cdc554be515ebb153e85f78db1c45881c0e1df67cf",
-          "size": 22900
+          "sha256": "e6c0756841b6267905ac7640c8222d20b80f3eee317fbea2ca426004daf98a9b",
+          "size": 23268
         },
         {
           "path": "manifest.json",
@@ -1343,8 +1343,8 @@
         },
         {
           "path": "plugin.py",
-          "sha256": "db07a867f8ccaa8d33b20ca11258dbf477c58ff4d2f2f93d95e8cdbee0c84bea",
-          "size": 11838
+          "sha256": "f9e09abe0ba0421e7cb6834a310a277df4ca4008a500b754a9df04f3c8193e75",
+          "size": 12615
         },
         {
           "path": "scripts/slack_daemon.py",
@@ -1358,13 +1358,13 @@
         },
         {
           "path": "tests/test_events_store.py",
-          "sha256": "54549a03bc70c140087ed3d68524e7a87015c8167c57a350b6ec3080661696ae",
-          "size": 7342
+          "sha256": "60fa2939ea793fb63602c5ddc821dc2484ba2fe22fe283895bd050bc47393a17",
+          "size": 8092
         },
         {
           "path": "tests/test_host_adapter.py",
-          "sha256": "59d52539db0cec5f84641703796ff8b0ba2b2f9e6f50ab9fe408bdcb72db43ef",
-          "size": 7831
+          "sha256": "ac61047660781ae49cf1f24fd24a41511c2989e8411c99dd5d0bd9ce784dc2ef",
+          "size": 8625
         },
         {
           "path": "tests/test_slack_api.py",
@@ -1378,12 +1378,11 @@
         },
         {
           "path": "tests/test_workers_plugin.py",
-          "sha256": "d1ae87e64229ec3aadd32a859a8a5c581e362eba859906f75176535724dcec5c",
-          "size": 9532
+          "sha256": "689c4b7240c194ab2c3cf33b7ff00f6530812e22112ceaf1d2a29c727a4b252a",
+          "size": 12425
         }
       ],
-      "description": "Bidirectional Slack presence transport for Ouroboros using Socket Mode, durable delivery queues, threaded replies, proactive text messages, and inbound file staging.",
-      "when_to_use": "User wants Ouroboros to receive Slack messages or files, reply in Slack threads, or send proactive Slack text messages."
+      "description": "Bidirectional Slack presence transport for Ouroboros using Socket Mode, durable delivery queues, threaded replies, proactive text messages, and inbound file staging."
     }
   ]
 }

@@ -226,6 +226,13 @@ class BridgeStore:
 
     @staticmethod
     def _claimable_sql(table: str) -> str:
+        # A deferred Host reference owns the long task already. Once its first
+        # acknowledgement is queued, later conversation events may be admitted.
+        deferred = (
+            "AND NOT (earlier.state = 'pending' AND earlier.host_reference LIKE 'deferred:%')"
+            if table == "inbox"
+            else ""
+        )
         return f"""
             SELECT q.id
             FROM {table} AS q
@@ -236,6 +243,7 @@ class BridgeStore:
                   WHERE earlier.ordering_key = q.ordering_key
                     AND earlier.id < q.id
                     AND earlier.state IN ('pending', 'leased')
+                    {deferred}
               )
             ORDER BY q.id
             LIMIT 1

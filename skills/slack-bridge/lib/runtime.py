@@ -15,6 +15,10 @@ from .store import BridgeStore, InboxItem
 
 log = logging.getLogger(__name__)
 _MAX_OUTBOX_ATTEMPTS = 5
+# The host Presence endpoint may spend up to 1800 seconds on one turn. Keep
+# the inbox lease alive for that full request plus a recovery buffer so a slow
+# turn cannot be claimed and submitted a second time by another worker.
+_INBOUND_LEASE_SECONDS = 2100.0
 
 
 def _event_directory_name(item: InboxItem) -> str:
@@ -38,7 +42,7 @@ class InboundWorker:
         self.staged_root = staged_root
 
     async def process_once(self) -> bool:
-        item = self.store.claim_inbox(lease_seconds=90.0)
+        item = self.store.claim_inbox(lease_seconds=_INBOUND_LEASE_SECONDS)
         if item is None:
             return False
         try:

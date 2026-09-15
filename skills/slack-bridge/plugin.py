@@ -203,81 +203,98 @@ def register(api: Any) -> None:
             "components": [
                 {
                     "type": "markdown",
-                    "text": (
-                        "### Slack presence transport\n"
-                        "Live Socket Mode health and durable inbox/outbox custody. "
-                        "Message contents and credentials are never shown here."
-                    ),
+                    "text": "### Slack presence transport\n"
+                    "Live Socket Mode health and durable inbox/outbox custody. Message "
+                    "contents and credentials are never shown here.",
                 },
                 {
                     "type": "poll",
                     "route": "status",
                     "auto_start": True,
                     "interval_ms": 3000,
+                    "target": "status",
+                    "max_ticks": 100,
+                    "label": "Refresh transport status",
                 },
                 {
                     "type": "group",
                     "layout": "cluster",
                     "components": [
-                        {"type": "status", "label": "Socket", "path": "socket_state"},
                         {
-                            "type": "status",
-                            "label": "Host adapter",
-                            "path": "host_adapter_state",
+                            "type": "metric",
+                            "label": "Socket",
+                            "path": "socket_state",
+                            "target": "status",
                         },
                         {
-                            "type": "status",
+                            "type": "metric",
+                            "label": "Host adapter",
+                            "path": "host_adapter_state",
+                            "target": "status",
+                        },
+                        {
+                            "type": "metric",
                             "label": "Presence binding",
                             "path": "binding_state",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Workspace",
                             "path": "workspace_name",
                             "tone": "info",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Inbox pending",
                             "path": "inbox_pending",
                             "tone": "neutral",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Inbox delivered",
                             "path": "inbox_delivered",
                             "tone": "success",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Outbox pending",
                             "path": "outbox_pending",
                             "tone": "neutral",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Outbox delivered",
                             "path": "outbox_delivered",
                             "tone": "success",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Inbox failed",
                             "path": "inbox_failed",
                             "tone": "danger",
+                            "target": "status",
                         },
                         {
                             "type": "metric",
                             "label": "Outbox failed",
                             "path": "outbox_failed",
                             "tone": "danger",
+                            "target": "status",
                         },
                     ],
+                    "target": "status",
                 },
                 {
                     "type": "json",
                     "label": "Last delivery error",
                     "path": "last_delivery_error",
+                    "target": "status",
                 },
             ],
         },
@@ -292,8 +309,8 @@ def register(api: Any) -> None:
                     "type": "markdown",
                     "text": (
                         "Set and grant `SLACK_BOT_TOKEN` and `SLACK_APP_TOKEN` in Secrets. "
-                        "Select an owner-created account-wide Presence Binding ID for "
-                        "provider `slack`, the workspace Team ID, and conversation ID `*`. "
+                        "Select an owner-created Presence Binding ID for "
+                        "provider `slack`, the workspace Team ID, and an exact channel conversation ID or `*`. "
                         "The bridge receives messages from every DM, MPDM, public channel, "
                         "and private channel that the installed app can actually see."
                     ),
@@ -309,7 +326,7 @@ def register(api: Any) -> None:
                             "label": "Presence Binding ID",
                             "type": "text",
                             "placeholder": "32 lowercase hexadecimal characters",
-                            "help": "Owner-created binding for provider slack, this workspace Team ID, and conversation ID *.",
+                            "help": "Owner-created binding for provider slack, this workspace Team ID, and an exact channel conversation ID or *.",
                         },
                         {
                             "name": "SLACK_INBOUND_WORKERS",

@@ -82,6 +82,23 @@ class _FailingSlack(_Slack):
         raise SlackApiError("temporary_failure")
 
 
+def test_inbound_lease_covers_maximum_presence_turn(monkeypatch, tmp_path) -> None:
+    store = BridgeStore(tmp_path)
+    payload = _payload()
+    store.ingest_envelope(payload, parse_socket_envelope(payload))
+    claimed = {}
+    original_claim = store.claim_inbox
+
+    def claim(*, lease_seconds):
+        claimed["seconds"] = lease_seconds
+        return original_claim(lease_seconds=lease_seconds)
+
+    monkeypatch.setattr(store, "claim_inbox", claim)
+    inbound = InboundWorker(store, _Slack(), _Host(), staged_root=tmp_path / "staged")
+    assert asyncio.run(inbound.process_once()) is True
+    assert claimed["seconds"] >= 1800.0
+
+
 def _payload() -> dict:
     return {
         "type": "events_api",
@@ -305,5 +322,76 @@ def test_settings_accept_only_canonical_binding_ids(tmp_path) -> None:
         assert valid.status_code == 200
         saved = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
         assert saved["binding_id"] == binding_id
+
+    asyncio.run(run())
+
+
+def test_outbound_ack_can_arrive_before_host_turn_completes(tmp_path):
+    async def run():
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        class SlowHost(_Host):
+            async def submit(self, event):
+                entered.set()
+                await release.wait()
+                return await super().submit(event)
+
+        store, slack = BridgeStore(tmp_path), _Slack()
+        payload = _payload()
+        store.ingest_envelope(payload, parse_socket_envelope(payload))
+        inbound = InboundWorker(
+            store, slack, SlowHost(), staged_root=tmp_path / "staged"
+        )
+        task = asyncio.create_task(inbound.process_once())
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            store.enqueue_outbox(
+                request_id="early-ack",
+                target="D1",
+                thread_ts="1.1",
+                chunks=("Reading it now",),
+            )
+            assert await OutboundWorker(store, slack).process_once()
+            assert not task.done()
+            assert slack.posts == [("D1", "Reading it now", "1.1")]
+        finally:
+            release.set()
+            await task
+
+    asyncio.run(run())
+
+
+def test_slow_host_keeps_exclusive_inbox_lease_past_ninety_seconds(
+    monkeypatch, tmp_path
+):
+    import lib.store as store_module
+
+    clock = [1000.0]
+    monkeypatch.setattr(store_module.time, "time", lambda: clock[0])
+
+    async def run():
+        store = BridgeStore(tmp_path)
+        payload = _payload()
+        store.ingest_envelope(payload, parse_socket_envelope(payload))
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        class SlowHost(_Host):
+            async def submit(self, event):
+                entered.set()
+                await release.wait()
+                return await super().submit(event)
+
+        task = asyncio.create_task(
+            InboundWorker(
+                store, _Slack(), SlowHost(), staged_root=tmp_path / "staged"
+            ).process_once()
+        )
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            clock[0] += 1801.0
+            assert store.claim_inbox() is None
+        finally:
+            release.set()
+            await task
 
     asyncio.run(run())

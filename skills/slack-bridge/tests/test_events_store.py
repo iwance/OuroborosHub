@@ -228,3 +228,22 @@ def test_database_uses_wal_and_full_sync_for_ack_custody(tmp_path) -> None:
     with sqlite3.connect(store.path) as db:
         assert db.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
         assert db.execute("PRAGMA synchronous").fetchone()[0] == 2
+
+
+def test_deferred_work_keeps_custody_without_blocking_next_thread_message(tmp_path):
+    store = BridgeStore(tmp_path)
+    for payload in (
+        _payload(envelope_id="env-1", event_id="Ev-1", timestamp="1"),
+        _payload(envelope_id="env-2", event_id="Ev-2", timestamp="2", thread_ts="1"),
+    ):
+        store.ingest_envelope(payload, _parse(payload))
+    first = store.claim_inbox()
+    store.set_host_reference(
+        first.row_id, first.lease_token, "deferred:persisted-reference"
+    )
+    store.retry_inbox(
+        first.row_id, first.lease_token, "Host work pending", delay_seconds=5
+    )
+    second = store.claim_inbox()
+    assert second is not None and second.event_id == "Ev-2"
+    assert store.status()["inbox_pending"] == 1

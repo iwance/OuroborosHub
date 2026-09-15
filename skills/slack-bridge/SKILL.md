@@ -4,6 +4,7 @@ description: Bidirectional Slack presence transport for Ouroboros using Socket M
 version: 1.0.0
 type: extension
 entry: plugin.py
+plugin_api: "2.0"
 runtime: python3
 permissions: [net, read_settings, widget, route, tool, companion_process, presence]
 env_from_settings: [SLACK_BOT_TOKEN, SLACK_APP_TOKEN]
@@ -35,9 +36,9 @@ runtime.
 
 ## Presence binding
 
-Choose the owner-created account-wide presence binding in this skill's settings.
+Choose the owner-created exact or account-wide presence binding in this skill's settings.
 Create it for provider `slack`, the workspace Team ID shown in the widget, and
-conversation ID `*`. The bridge keeps that one 32-character lowercase
+an exact channel conversation ID or `*`. The bridge keeps that one 32-character lowercase
 hexadecimal Binding ID and submits neutral provider events to the reviewed
 loopback presence endpoint using the dedicated `presence` permission. Immediate
 text is queued once for Slack; deferred work keeps its durable work reference and
@@ -54,7 +55,7 @@ is polled until terminal.
 6. Invite the bot to channels where it should participate.
 
 Every DM, MPDM, public channel, and private channel event that the installed app
-can actually receive is admitted. Invite the bot where Slack requires explicit
+can receive is transported; the selected host binding decides admission. Invite the bot where Slack requires explicit
 membership; there is no second bridge-local channel allowlist.
 
 Inbound Slack files are downloaded from their authenticated `url_private`
@@ -68,11 +69,17 @@ does not request `files:write`.
   commits.
 - Slack retry envelopes and duplicate event IDs are deduplicated.
 - Expired leases are reclaimed after a crash.
-- Work is bounded and ordered per Slack thread while independent threads may run
-  concurrently.
+- Admission is ordered per Slack thread while independent threads may run
+  concurrently. Deferred work retains its durable reference and polling, but
+  allows later messages in the same thread after its initial acknowledgement.
 - An outbound item becomes terminally failed after five delivery attempts; that
   failed item no longer blocks later messages in the same Slack thread.
 - Long outbound text is split into Slack-safe chunks before it enters the
   durable outbox.
 - The Widgets tab reports connection state, queue depth, failures, and recent
   activity without exposing tokens or message contents.
+
+Save settings before enabling the skill, or toggle it after a settings change.
+Delivery is durable and retries are bounded. A network interruption after Slack
+accepts a send but before the receipt is stored can still cause a repeated send;
+the transport does not claim provider-side exactly-once delivery.

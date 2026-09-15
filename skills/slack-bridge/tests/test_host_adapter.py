@@ -248,3 +248,29 @@ def test_binding_id_rejects_noncanonical_values(value: str) -> None:
 
 def test_binding_id_accepts_canonical_lowercase_hex() -> None:
     assert normalize_binding_id("0123456789abcdef" * 2) == "0123456789abcdef" * 2
+
+
+@pytest.mark.parametrize("outcome", ["silent", "tool_delivered"])
+def test_nonmessage_outcome_never_duplicates_tool_delivery(outcome):
+    async def run():
+        def handler(request):
+            return httpx.Response(
+                200,
+                json={
+                    "status": "completed",
+                    "outcome": outcome,
+                    "text": "Already delivered",
+                    "turn_ref": "turn-1",
+                    "work_ref": "",
+                },
+            )
+
+        adapter, http = _adapter(handler)
+        try:
+            reference = await adapter.submit(_item())
+            assert (await adapter.deliver(reference)).texts == ()
+        finally:
+            await adapter.aclose()
+            await http.aclose()
+
+    asyncio.run(run())
