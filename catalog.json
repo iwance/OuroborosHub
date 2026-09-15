@@ -1,8 +1,8 @@
 {
-  "description": "Official Ouroboros skills catalog.",
-  "name": "OuroborosHub",
-  "raw_base_url": "https://raw.githubusercontent.com/razzant/OuroborosHub/main",
   "schema_version": 1,
+  "name": "OuroborosHub",
+  "description": "Official Ouroboros skills catalog.",
+  "raw_base_url": "https://raw.githubusercontent.com/razzant/OuroborosHub/main",
   "skills": [
     {
       "description": "Agent-to-Agent protocol bridge for Ouroboros. Provides a local A2A-compatible server plus client tools for discovering and messaging other A2A agents.",
@@ -226,29 +226,29 @@
       "files": [
         {
           "path": "SKILL.md",
-          "sha256": "fdfd0d679ea5f32f165031fda917104edb21334e627603d694af0c279a9942fd",
-          "size": 3544
+          "sha256": "19d269f9a98cf4f54d2dca570cdec32e79d959dc735ff90e5516e6ff45ef9b9f",
+          "size": 4475
         },
         {
           "path": "plugin.py",
-          "sha256": "7e7cb9dbd5107eb7e06e6570cefad2a84882f9afc54a9e5b64d5f2f61fb51e2b",
-          "size": 16460
+          "sha256": "f4a0c3d06c1dae879dc1c3bb6308c1d9b8276ab39b0efb3e80a07df41bb7c5da",
+          "size": 26119
         },
         {
           "path": "test_cache_efficiency.py",
-          "sha256": "e8be2a091b59115a80121eb1ea86f9ed14435ec5cdca7ca187914ffbd27b3be8",
-          "size": 19259
+          "sha256": "d2b3f2ea442be68e1a247bc8b681b93696e08b77384aeb7de4918fcef7f6c698",
+          "size": 27246
         },
         {
           "path": "widget.js",
-          "sha256": "016a1806412e6e35039205456b7daa06e76d7478c797c93408f4f15a9c8aa297",
-          "size": 34492
+          "sha256": "62a1637e945367f3215c312176f059440cfbda117f61b3197bfa46f3bdf41109",
+          "size": 34628
         }
       ],
       "name": "cache_efficiency_snapshot",
       "slug": "cache_efficiency_snapshot",
       "type": "extension",
-      "version": "0.4.0"
+      "version": "0.5.0"
     },
     {
       "description": "Fully playable Classic Doom (1993) standalone 2.5D FPS raycaster extension widget with textured walls, procedural sprite enemies, authentic weapons, levels, HUD, Web Audio sound and heavy metal music synthesizer.",
