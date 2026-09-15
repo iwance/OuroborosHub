@@ -1472,6 +1472,100 @@
         }
       ],
       "description": "Durable Telegram transport for generic Ouroboros presences, with exact actor and conversation provenance, media staging, and provider receipts."
+    },
+    {
+      "slug": "slack-bridge",
+      "name": "slack-bridge",
+      "version": "1.0.0",
+      "type": "extension",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "42a6ea798df1451f06c9c03d69b7768d4355ecacc00f195c07eadc8dd4c51e3a",
+          "size": 4087
+        },
+        {
+          "path": "lib/__init__.py",
+          "sha256": "95757c652f0f319e24740726c9e9373be69b4a60e4c935ef905523b5c9718ba2",
+          "size": 70
+        },
+        {
+          "path": "lib/events.py",
+          "sha256": "543c43946c0c3c60d890033569c0b858c1aa0867a46449fe74775975fce43f4f",
+          "size": 5013
+        },
+        {
+          "path": "lib/host_adapter.py",
+          "sha256": "13e01ee1190eb41484499357f7eb2de671641930bc835125cd3b89f6fceffa4b",
+          "size": 13288
+        },
+        {
+          "path": "lib/runtime.py",
+          "sha256": "79632d30c3a293f5c8f13c26fbe85e5bc9f31eee8c25672b1b2a4cc97409fa23",
+          "size": 10029
+        },
+        {
+          "path": "lib/slack_api.py",
+          "sha256": "e61e197932a29f7d9d54e3f9ea22e841d0e1301ec545902dc133ce7a568d76a1",
+          "size": 9610
+        },
+        {
+          "path": "lib/socket_mode.py",
+          "sha256": "b2e7a7e37d5187244c562f16d056f5ad78544a67101b92e2b785a3737ea99cc9",
+          "size": 5220
+        },
+        {
+          "path": "lib/store.py",
+          "sha256": "e6c0756841b6267905ac7640c8222d20b80f3eee317fbea2ca426004daf98a9b",
+          "size": 23268
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "86eee8ec8839bc454ec420c2ee29b86a4f76be513edfaf6aef1fa8ef7ebd3cd3",
+          "size": 820
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "f9e09abe0ba0421e7cb6834a310a277df4ca4008a500b754a9df04f3c8193e75",
+          "size": 12615
+        },
+        {
+          "path": "scripts/slack_daemon.py",
+          "sha256": "d31e7d77b2202b58baf2c066f77252c73c4d9aab706ec555576cb870f11f3d32",
+          "size": 4099
+        },
+        {
+          "path": "tests/conftest.py",
+          "sha256": "91819639c2342bc9cc84fc7b8045863d3c61128999333d27922b3501b2d040f0",
+          "size": 198
+        },
+        {
+          "path": "tests/test_events_store.py",
+          "sha256": "60fa2939ea793fb63602c5ddc821dc2484ba2fe22fe283895bd050bc47393a17",
+          "size": 8092
+        },
+        {
+          "path": "tests/test_host_adapter.py",
+          "sha256": "ac61047660781ae49cf1f24fd24a41511c2989e8411c99dd5d0bd9ce784dc2ef",
+          "size": 8625
+        },
+        {
+          "path": "tests/test_slack_api.py",
+          "sha256": "0c9517a8443cc04b4c5ccf980581f4aa382bd910bba837fa6c1dde91e9997e60",
+          "size": 2145
+        },
+        {
+          "path": "tests/test_socket_mode.py",
+          "sha256": "f2bd398507ec7f4d4b28acd01590e34b5524d4c7cdfd120074f0cee15b582b5d",
+          "size": 2150
+        },
+        {
+          "path": "tests/test_workers_plugin.py",
+          "sha256": "689c4b7240c194ab2c3cf33b7ff00f6530812e22112ceaf1d2a29c727a4b252a",
+          "size": 12425
+        }
+      ],
+      "description": "Bidirectional Slack presence transport for Ouroboros using Socket Mode, durable delivery queues, threaded replies, proactive text messages, and inbound file staging."
     }
   ]
 }
