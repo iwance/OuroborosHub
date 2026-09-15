@@ -1338,8 +1338,8 @@
         },
         {
           "path": "plugin.py",
-          "sha256": "a80cc05d818d013aba0f2f2bbbe7d608c40cfe0e79a6237f368191d476c83f70",
-          "size": 7632
+          "sha256": "d4e3f2cfb07e93657925b4680a5753051b32f7a6561685c2839d9abcf9165ef1",
+          "size": 7625
         },
         {
           "path": "scripts/email_daemon.py",

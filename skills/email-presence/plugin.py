@@ -119,7 +119,7 @@ def register(api):
     api.register_route("settings/save", save, methods=("POST",))
     api.register_ui_tab("email_presence", title="Email Presence", render={
         "kind": "declarative", "schema_version": 1, "components": [
-            {"type": "action", "target": "status", "route": "status", "method": "GET", "submit_label": "Refresh delivery status", "fields": []},
+            {"type": "action", "target": "status", "route": "status", "method": "GET", "label": "Refresh delivery status", "fields": []},
             {"type": "status", "target": "status", "idle": "Refresh to inspect mailbox intake and delivery receipts.", "loading": "Reading local status…", "success": "Status loaded.", "error": "Status unavailable."},
             {"type": "json", "target": "status"}]})
     api.register_settings_section("email_presence", title="Email Presence", schema={"components": [
