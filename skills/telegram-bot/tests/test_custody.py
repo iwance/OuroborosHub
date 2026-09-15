@@ -191,3 +191,19 @@ def test_submission_and_deferred_result_enqueue_each_text_once(tmp_path):
     }
     assert all(item["chat_id"] == "4" for item in deliveries)
     assert store.status_snapshot()["work_terminal"] == 1
+
+
+def test_outbox_fifo_survives_retry_without_blocking_other_rooms(tmp_path):
+    store = CustodyStore(tmp_path / "custody.sqlite3")
+    for key, chat in (("first", "1"), ("second", "1"), ("other", "2")):
+        store.enqueue_outbox(key, {"kind": "message", "chat_id": chat, "text": key})
+    assert store.claim_outbox().delivery_id == "first"
+    store.release_outbox("first", reason="temporary", retry_after_sec=60)
+    assert store.claim_outbox().delivery_id == "other"
+    assert store.claim_outbox() is None
+    store.mark_delivered("other", provider_receipt={"message_id": 3})
+    # Terminal failure releases the next message in this same room.
+    with store._connect() as conn:
+        conn.execute("UPDATE outbox SET state='leased' WHERE delivery_id='first'")
+    store.mark_outbox_failed("first", reason="retry exhausted")
+    assert store.claim_outbox().delivery_id == "second"

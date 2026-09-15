@@ -71,7 +71,7 @@ def test_package_style_plugin_registration_and_status_route(tmp_path):
     api = FakeApi(tmp_path)
     module.register(api)
 
-    assert api.tasks[0][0] == "telegram_presence_transport"
+    assert api.tasks[0][0] == "telegram_presence"
     assert api.tasks[0][2] == {"restart_policy": "on_failure", "max_restarts": 10}
     assert api.routes[0][0] == "status"
     assert api.routes[0][2] == ("GET",)
@@ -92,9 +92,11 @@ def test_package_style_plugin_registration_and_status_route(tmp_path):
     assert payload["outbox_failed"] == 0
     metric_paths = {
         component["path"]
-        for component in api.tabs[0][2]["render"]["components"][1]["components"][1][
-            "components"
-        ]
+        for component in next(
+            component
+            for component in api.tabs[0][2]["render"]["components"]
+            if component.get("title") == "Provider custody"
+        )["components"]
     }
     assert {"inbox_failed", "outbox_failed"} <= metric_paths
     api.unload()
@@ -160,7 +162,9 @@ def test_binding_can_be_saved_and_read_through_widget_routes(tmp_path):
     binding_id = "a" * 32
 
     saved = __import__("asyncio").run(
-        routes["settings/save"](FakeRequest({"binding_id": binding_id}))
+        routes["settings/save"](
+            FakeRequest({"binding_id": binding_id, "management_group_id": "-42"})
+        )
     )
     status = __import__("asyncio").run(routes["status"](None))
 
@@ -168,6 +172,7 @@ def test_binding_can_be_saved_and_read_through_widget_routes(tmp_path):
     status_payload = json.loads(status.body)
     assert status_payload["has_presence_binding"] is True
     assert status_payload["binding_state"] == "configured"
+    assert status_payload["management_group_id"] == "-42"
     assert (
         json.loads((tmp_path / "settings.json").read_text())["binding_id"] == binding_id
     )

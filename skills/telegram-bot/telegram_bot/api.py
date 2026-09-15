@@ -238,6 +238,18 @@ class TelegramClient:
             reply_to_message_id=reply_to_message_id,
         )
 
+    async def moderate(self, action: str, parameters: Dict[str, Any]) -> bool:
+        """Apply one model-selected provider operation; the provider checks bot rights."""
+        endpoint = {
+            "delete_message": "deleteMessage",
+            "restrict_member": "restrictChatMember",
+            "ban_member": "banChatMember",
+            "unban_member": "unbanChatMember",
+        }.get(action)
+        if endpoint is None:
+            raise ValueError("unsupported Telegram moderation action")
+        return bool(await self._call(endpoint, parameters))
+
     async def _send_file(
         self,
         endpoint: str,

@@ -303,3 +303,147 @@ async def _outbox_failure_is_bounded_and_later_delivery_proceeds(tmp_path):
     snapshot = runtime.store.status_snapshot()
     assert snapshot["outbox_failed"] == 1
     assert snapshot["outbox_delivered"] == 1
+
+
+def test_early_outbound_delivery_while_host_turn_is_still_running(tmp_path):
+    async def run():
+        from telegram_bot.custody import CustodyStore
+
+        admitted, finish = asyncio.Event(), asyncio.Event()
+
+        class SlowHost(AcceptingSubmitter):
+            async def submit(self, event, staged_files):
+                admitted.set()
+                await finish.wait()
+                return PresenceSubmission(
+                    "completed", "silent", "", "turn-1", "", "b" * 32
+                )
+
+        runtime = TelegramTransportRuntime(
+            state_dir=tmp_path,
+            token_provider=lambda: "token",
+            logger=Logger(),
+            submitter=SlowHost(),
+            client_factory=RuntimeClient,
+        )
+        event = parse_telegram_update(
+            {
+                "update_id": 1,
+                "message": {
+                    "message_id": 2,
+                    "text": "read this",
+                    "from": {"id": 3},
+                    "chat": {"id": 4, "type": "private"},
+                },
+            },
+            bot_account_id="9",
+        )
+        runtime.store.commit_update(1, event)
+        turn = asyncio.create_task(runtime.process_one_inbox())
+        try:
+            await asyncio.wait_for(admitted.wait(), 1)
+            # An extension tool in the LLM worker writes the same durable outbox.
+            CustodyStore(tmp_path / "custody.sqlite3").enqueue_outbox(
+                "telegram-send:ack",
+                {
+                    "kind": "message",
+                    "chat_id": "4",
+                    "text": "Reading it now",
+                    "reply_to_message_id": 2,
+                },
+            )
+            assert await runtime.process_one_outbox()
+            assert not turn.done()
+            assert runtime._client.sent[0][2] == "Reading it now"
+            assert (
+                runtime.store.delivery_receipt("telegram-send:ack")["state"]
+                == "delivered"
+            )
+        finally:
+            finish.set()
+            await turn
+        assert runtime.store.claim_outbox() is None
+
+    asyncio.run(run())
+
+
+def test_tool_delivered_does_not_echo_explanatory_text(tmp_path):
+    async def run():
+        class Host(AcceptingSubmitter):
+            async def submit(self, event, staged_files):
+                return PresenceSubmission(
+                    "completed",
+                    "tool_delivered",
+                    "Already sent via tool",
+                    "turn-1",
+                    "",
+                    "b" * 32,
+                )
+
+        runtime = TelegramTransportRuntime(
+            state_dir=tmp_path,
+            token_provider=lambda: "token",
+            logger=Logger(),
+            submitter=Host(),
+            client_factory=RuntimeClient,
+        )
+        event = parse_telegram_update(
+            {
+                "update_id": 1,
+                "message": {
+                    "message_id": 2,
+                    "text": "hi",
+                    "from": {"id": 3},
+                    "chat": {"id": 4, "type": "private"},
+                },
+            },
+            bot_account_id="9",
+        )
+        runtime.store.commit_update(1, event)
+        assert await runtime.process_one_inbox()
+        assert runtime.store.claim_outbox() is None
+
+    asyncio.run(run())
+
+
+def test_long_text_retry_keeps_confirmed_chunks_after_restart(tmp_path):
+    async def run():
+        class FlakyClient(RuntimeClient):
+            def __init__(self, token):
+                super().__init__(token)
+                self.failed = False
+
+            async def send_message(self, chat_id, text, **kwargs):
+                if text == "b" * 100 and not self.failed:
+                    self.failed = True
+                    raise RuntimeError("second chunk temporary failure")
+                return await super().send_message(chat_id, text, **kwargs)
+
+        client = FlakyClient("token")
+
+        def runtime():
+            return TelegramTransportRuntime(
+                state_dir=tmp_path,
+                token_provider=lambda: "token",
+                logger=Logger(),
+                submitter=AcceptingSubmitter(),
+                client_factory=lambda token: client,
+            )
+
+        first = runtime()
+        first.store.enqueue_outbox(
+            "long", {"kind": "message", "chat_id": "1", "text": "a" * 4000 + "b" * 100}
+        )
+        assert await first.process_one_outbox()
+        assert [entry[2] for entry in client.sent] == ["a" * 4000]
+        with sqlite3.connect(first.store.path) as conn:
+            conn.execute("UPDATE outbox SET available_at=0 WHERE delivery_id='long'")
+        resumed = runtime()
+        assert await resumed.process_one_outbox()
+        assert [entry[2] for entry in client.sent] == ["a" * 4000, "b" * 100]
+        assert (
+            len(resumed.store.delivery_receipt("long")["provider_receipt"]["messages"])
+            == 2
+        )
+
+    asyncio.run(run())

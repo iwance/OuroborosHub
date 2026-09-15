@@ -175,7 +175,7 @@ class CustodyStore:
                 conn.rollback()
                 raise ValueError("inbox event is not leased")
             event = json.loads(row["payload_json"])
-            if text:
+            if text and outcome in {"message", "deferred"}:
                 self._enqueue_outbox(
                     conn,
                     f"presence:{event_id}:turn",
@@ -323,11 +323,18 @@ class CustodyStore:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
                 """
-                SELECT delivery_id, payload_json, attempts
-                FROM outbox
-                WHERE (state='pending' AND available_at<=?)
-                   OR (state='leased' AND lease_until<=?)
-                ORDER BY created_at ASC
+                SELECT candidate.delivery_id, candidate.payload_json, candidate.attempts
+                FROM outbox AS candidate
+                WHERE ((candidate.state='pending' AND candidate.available_at<=?)
+                   OR (candidate.state='leased' AND candidate.lease_until<=?))
+                AND NOT EXISTS (
+                    SELECT 1 FROM outbox AS earlier
+                    WHERE earlier.rowid < candidate.rowid
+                      AND earlier.state IN ('pending','leased')
+                      AND json_extract(earlier.payload_json, '$.chat_id') = json_extract(candidate.payload_json, '$.chat_id')
+                      AND COALESCE(json_extract(earlier.payload_json, '$.topic_id'), '') = COALESCE(json_extract(candidate.payload_json, '$.topic_id'), '')
+                )
+                ORDER BY candidate.created_at ASC, candidate.rowid ASC
                 LIMIT 1
                 """,
                 (now, now),
@@ -383,6 +390,14 @@ class CustodyStore:
                 (time.time(), str(reason)[:500], delivery_id),
             )
 
+    def checkpoint_outbox(self, delivery_id: str, payload: Dict[str, Any]) -> None:
+        """Retain confirmed text chunks before attempting the next provider call."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE outbox SET payload_json=? WHERE delivery_id=? AND state='leased'",
+                (_json(payload), delivery_id),
+            )
+
     def mark_delivered(
         self, delivery_id: str, *, provider_receipt: Dict[str, Any]
     ) -> None:
@@ -396,6 +411,23 @@ class CustodyStore:
                 """,
                 (time.time(), _json(provider_receipt), delivery_id),
             )
+
+    def delivery_receipt(self, delivery_id: str) -> Dict[str, Any]:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT state, attempts, delivered_at, provider_receipt_json, last_error "
+                "FROM outbox WHERE delivery_id=?",
+                (delivery_id,),
+            ).fetchone()
+        if row is None:
+            return {"state": "not_found"}
+        return {
+            "state": str(row["state"]),
+            "attempts": int(row["attempts"]),
+            "delivered_at": _timestamp(row["delivered_at"]),
+            "provider_receipt": json.loads(row["provider_receipt_json"] or "{}"),
+            "error": str(row["last_error"]),
+        }
 
     def status_snapshot(self) -> Dict[str, Any]:
         with self._connect() as conn:

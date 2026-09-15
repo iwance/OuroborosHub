@@ -14,6 +14,11 @@ from starlette.responses import JSONResponse
 from .telegram_bot.custody import CustodyStore
 from .telegram_bot.host import PresenceHostClient
 from .telegram_bot.runtime import TelegramTransportRuntime
+from .telegram_bot.tools import (
+    make_moderation_tool,
+    make_receipt_tool,
+    MODERATION_SCHEMA,
+)
 
 
 _RUNTIME: Optional[TelegramTransportRuntime] = None
@@ -29,85 +34,109 @@ def _widget_render() -> Dict[str, Any]:
                 "type": "form",
                 "route": "settings/save",
                 "method": "POST",
-                "submit_label": "Save Presence binding",
+                "submit_label": "Save transport settings",
                 "fields": [
                     {
                         "name": "binding_id",
                         "label": "Presence Binding ID",
                         "type": "text",
                         "placeholder": "32-character binding id",
-                        "help": (
-                            "Single owner-created account-wide binding "
-                            "(conversation_id=*) for this Telegram transport."
-                        ),
-                    }
+                        "help": "Owner-created binding for this Telegram transport "
+                        "(conversation_id=exact id or conversation_id=*).",
+                    },
+                    {
+                        "name": "management_group_id",
+                        "label": "Management group ID",
+                        "type": "text",
+                        "placeholder": "Optional numeric Telegram group ID",
+                        "help": "Marks this room in event facts. Work instructions stay "
+                        "in the behavior profile; no owner permissions are "
+                        "granted.",
+                    },
                 ],
             },
             {
                 "type": "poll",
                 "route": "status",
                 "method": "GET",
-                "interval_sec": 5,
+                "target": "status",
+                "interval_ms": 5000,
+                "auto_start": True,
+                "max_ticks": 100,
+                "label": "Refresh transport status",
+            },
+            {
+                "type": "callout",
+                "path": "runtime_state",
+                "tone": "info",
+                "target": "status",
+            },
+            {
+                "type": "group",
+                "title": "Provider custody",
+                "layout": "grid",
+                "columns": 4,
                 "components": [
-                    {"type": "callout", "path": "runtime_state", "tone": "info"},
                     {
-                        "type": "group",
-                        "title": "Provider custody",
-                        "layout": "grid",
-                        "columns": 4,
-                        "components": [
-                            {
-                                "type": "metric",
-                                "label": "Inbox waiting",
-                                "path": "inbox_waiting",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Inbox leased",
-                                "path": "inbox_leased",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Submitted",
-                                "path": "inbox_submitted",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Inbox failed",
-                                "path": "inbox_failed",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Outbox waiting",
-                                "path": "outbox_waiting",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Delivered",
-                                "path": "outbox_delivered",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Outbox failed",
-                                "path": "outbox_failed",
-                            },
-                            {
-                                "type": "metric",
-                                "label": "Telegram offset",
-                                "path": "telegram_offset",
-                            },
-                        ],
+                        "type": "metric",
+                        "label": "Inbox waiting",
+                        "path": "inbox_waiting",
+                        "target": "status",
                     },
                     {
-                        "type": "kv",
-                        "fields": [
-                            {"label": "Bot", "path": "bot_label"},
-                            {"label": "Last provider event", "path": "last_event_at"},
-                            {"label": "Last delivery", "path": "last_delivery_at"},
-                            {"label": "Last error", "path": "last_error"},
-                        ],
+                        "type": "metric",
+                        "label": "Inbox leased",
+                        "path": "inbox_leased",
+                        "target": "status",
+                    },
+                    {
+                        "type": "metric",
+                        "label": "Submitted",
+                        "path": "inbox_submitted",
+                        "target": "status",
+                    },
+                    {
+                        "type": "metric",
+                        "label": "Inbox failed",
+                        "path": "inbox_failed",
+                        "target": "status",
+                    },
+                    {
+                        "type": "metric",
+                        "label": "Outbox waiting",
+                        "path": "outbox_waiting",
+                        "target": "status",
+                    },
+                    {
+                        "type": "metric",
+                        "label": "Delivered",
+                        "path": "outbox_delivered",
+                        "target": "status",
+                    },
+                    {
+                        "type": "metric",
+                        "label": "Outbox failed",
+                        "path": "outbox_failed",
+                        "target": "status",
+                    },
+                    {
+                        "type": "metric",
+                        "label": "Telegram offset",
+                        "path": "telegram_offset",
+                        "target": "status",
                     },
                 ],
+                "target": "status",
+            },
+            {
+                "type": "kv",
+                "fields": [
+                    {"label": "Bot", "path": "bot_label"},
+                    {"label": "Last provider event", "path": "last_event_at"},
+                    {"label": "Last delivery", "path": "last_delivery_at"},
+                    {"label": "Last error", "path": "last_error"},
+                ],
+                "target": "status",
             },
         ],
     }
@@ -129,6 +158,9 @@ def _status_payload() -> Dict[str, Any]:
         "last_delivery_at": runtime.get("last_delivery_at", ""),
         "last_error": runtime.get("last_error", ""),
         "has_presence_binding": bool(binding_id),
+        "management_group_id": str(
+            _load_local_settings().get("management_group_id") or ""
+        ),
         "binding_state": "configured" if binding_id else "missing",
         **counts,
     }
@@ -208,9 +240,16 @@ async def _settings_save_route(request: Any) -> JSONResponse:
         body = await request.json()
     except Exception:
         body = None
-    if not isinstance(body, dict) or set(body) != {"binding_id"}:
+    if (
+        not isinstance(body, dict)
+        or "binding_id" not in body
+        or set(body) - {"binding_id", "management_group_id"}
+    ):
         return JSONResponse(
-            {"ok": False, "error": "Expected only binding_id"},
+            {
+                "ok": False,
+                "error": "Expected binding_id and optional management_group_id",
+            },
             status_code=400,
         )
     binding_id = str(body.get("binding_id") or "").strip()
@@ -225,6 +264,17 @@ async def _settings_save_route(request: Any) -> JSONResponse:
             status_code=503,
         )
     settings = _load_local_settings()
+    if "management_group_id" in body:
+        group_id = str(body.get("management_group_id") or "").strip()
+        if group_id and re.fullmatch(r"-[0-9]+", group_id) is None:
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "error": "management_group_id must be a numeric Telegram group ID",
+                },
+                status_code=400,
+            )
+        settings["management_group_id"] = group_id
     settings["binding_id"] = binding_id
     path = _STATE_DIR / "settings.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -278,7 +328,7 @@ def register(api: Any) -> None:
             _RUNTIME.stop()
 
     api.register_supervised_task(
-        "telegram_presence_transport",
+        "telegram_presence",
         supervised_runtime,
         restart_policy="on_failure",
         max_restarts=10,
@@ -303,6 +353,25 @@ def register(api: Any) -> None:
                 "request_id": {"type": "string"},
             },
             "required": ["chat_id", "kind"],
+        },
+    )
+    api.register_tool(
+        "telegram_moderate",
+        make_moderation_tool(api),
+        description="Queue a Telegram delete/restrict/ban/unban operation with exact provider IDs. Reuse request_id when retrying; queued is not delivered.",
+        schema=MODERATION_SCHEMA,
+    )
+    api.register_tool(
+        "telegram_receipt",
+        make_receipt_tool(api),
+        description="Read durable delivery state, provider receipt or error for a Telegram send/moderation request.",
+        schema={
+            "type": "object",
+            "properties": {
+                "request_id": {"type": "string"},
+                "operation": {"type": "string", "enum": ["send", "moderate"]},
+            },
+            "required": ["request_id"],
         },
     )
     api.register_route("status", _status_route, methods=("GET",))

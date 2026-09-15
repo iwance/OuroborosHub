@@ -37,7 +37,7 @@ class TelegramEvent:
 
 
 def parse_telegram_update(
-    update: Dict[str, Any], *, bot_account_id: str
+    update: Dict[str, Any], *, bot_account_id: str, management_group_id: str = ""
 ) -> Optional[TelegramEvent]:
     """Return one factual external-message event or ``None`` for unsupported updates."""
     if not isinstance(update, dict):
@@ -83,6 +83,11 @@ def parse_telegram_update(
         "username": str(chat.get("username") or ""),
         "topic_id": topic_id,
     }
+    if str(chat_id) == str(management_group_id).strip() and chat.get("type") in {
+        "group",
+        "supergroup",
+    }:
+        conversation_fact["configured_room"] = "management_group"
     attachments = _attachments(message)
     message_fact = {
         "message_id": message_id,

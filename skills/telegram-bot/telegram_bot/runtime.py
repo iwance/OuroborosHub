@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import pathlib
 import re
 from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence
 
-from .api import TelegramClient
+from .api import TelegramClient, _split_text
 from .custody import CustodyStore, InboxLease, OutboxLease
 from .events import parse_telegram_update
 from .host import PresenceHostHTTPError, PresenceSubmission, PresenceWorkResult
@@ -118,7 +119,11 @@ class TelegramTransportRuntime:
                     update_id = _update_id(update)
                     if update_id is None:
                         continue
-                    event = parse_telegram_update(update, bot_account_id=self._bot_id)
+                    event = parse_telegram_update(
+                        update,
+                        bot_account_id=self._bot_id,
+                        management_group_id=self._management_group_id(),
+                    )
                     self.store.commit_update(update_id, event)
                 backoff = 2.0
             except asyncio.CancelledError:
@@ -131,6 +136,19 @@ class TelegramTransportRuntime:
                 )
                 await self._pause(backoff)
                 backoff = min(60.0, backoff * 1.7)
+
+    def _management_group_id(self) -> str:
+        try:
+            settings = json.loads(
+                (self.state_dir / "settings.json").read_text(encoding="utf-8")
+            )
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            return ""
+        return (
+            str(settings.get("management_group_id") or "").strip()
+            if isinstance(settings, dict)
+            else ""
+        )
 
     async def _ready_client(self) -> Optional[TelegramClient]:
         if self._client_lock is None:
@@ -254,7 +272,7 @@ class TelegramTransportRuntime:
                 self.store.complete_work(
                     lease.event_id,
                     status=result.status,
-                    text=result.text,
+                    text=result.text if result.outcome == "message" else "",
                 )
             else:
                 self.store.release_work(
@@ -291,7 +309,7 @@ class TelegramTransportRuntime:
             client = await self._ready_client()
             if client is None:
                 raise RuntimeError("telegram token is unavailable")
-            receipt = await _deliver(client, lease)
+            receipt = await _deliver(client, lease, self.store)
             self.store.mark_delivered(lease.delivery_id, provider_receipt=receipt)
             return True
         except asyncio.CancelledError:
@@ -326,7 +344,9 @@ class TelegramTransportRuntime:
             callback(level, message)
 
 
-async def _deliver(client: TelegramClient, lease: OutboxLease) -> Dict[str, Any]:
+async def _deliver(
+    client: TelegramClient, lease: OutboxLease, store: CustodyStore
+) -> Dict[str, Any]:
     payload = lease.payload
     kind = str(payload.get("kind") or "message")
     chat_id = str(payload.get("chat_id") or "").strip()
@@ -335,13 +355,25 @@ async def _deliver(client: TelegramClient, lease: OutboxLease) -> Dict[str, Any]
     topic_id = _optional_int(payload.get("topic_id"))
     reply_id = _optional_int(payload.get("reply_to_message_id"))
     if kind == "message":
-        messages = await client.send_message(
-            chat_id,
-            str(payload.get("text") or ""),
-            topic_id=topic_id,
-            reply_to_message_id=reply_id,
-        )
+        chunks = _split_text(str(payload.get("text") or ""), 4000)
+        messages = list(payload.get("_sent_messages") or [])
+        for index in range(len(messages), len(chunks)):
+            results = await client.send_message(
+                chat_id,
+                chunks[index],
+                topic_id=topic_id,
+                reply_to_message_id=reply_id if index == 0 else None,
+            )
+            messages.extend(results)
+            store.checkpoint_outbox(
+                lease.delivery_id, {**payload, "_sent_messages": messages}
+            )
         return {"kind": kind, "messages": messages}
+    if kind == "moderation":
+        result = await client.moderate(
+            str(payload["action"]), dict(payload["parameters"])
+        )
+        return {"kind": kind, "action": payload["action"], "result": result}
     file_path = pathlib.Path(str(payload.get("file_path") or ""))
     caption = str(payload.get("caption") or "")
     if kind == "photo":

@@ -83,3 +83,32 @@ def test_ignores_bot_edits_service_and_empty_messages():
     assert parse_telegram_update(bot, bot_account_id="9") is None
     edited = {"update_id": 1, "edited_message": {**base["message"], "text": "x"}}
     assert parse_telegram_update(edited, bot_account_id="9") is None
+
+
+def test_configured_group_is_context_not_owner_authority():
+    update = {
+        "update_id": 8,
+        "message": {
+            "message_id": 12,
+            "text": "/restart is conversation text",
+            "from": {"id": 30, "is_bot": False},
+            "chat": {"id": -42, "type": "group"},
+        },
+    }
+    event = parse_telegram_update(
+        update, bot_account_id="9", management_group_id="-42"
+    ).to_dict()
+    assert event["conversation"]["configured_room"] == "management_group"
+    assert event["text"] == "/restart is conversation text"
+    assert "owner" not in event and "role" not in event["actor"]
+    assert (
+        "configured_room"
+        not in parse_telegram_update(
+            update, bot_account_id="9", management_group_id="-43"
+        ).conversation
+    )
+    update["message"]["from"]["is_bot"] = True
+    assert (
+        parse_telegram_update(update, bot_account_id="9", management_group_id="-42")
+        is None
+    )
