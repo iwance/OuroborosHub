@@ -1301,6 +1301,179 @@
       "when_to_use": "The user attached a Word document and asks to read, summarize, search, compare, or revise its contents, or asks to create a Word or DOCX file."
     },
     {
+      "slug": "email-presence",
+      "name": "email-presence",
+      "version": "0.1.0",
+      "type": "extension",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9cccd3173d5c095f66ad47286ecf1ba3c348ed435ae21da5c8f11bd12173ee6b",
+          "size": 5834
+        },
+        {
+          "path": "lib/client.py",
+          "sha256": "8195a393cf76ce8e65e2c3dbbad97a003a5b2679dc7e5fa4170dbefc72a68bad",
+          "size": 10018
+        },
+        {
+          "path": "lib/host_adapter.py",
+          "sha256": "39f2541075fddf72a2484f236274f98dc2cd8ac9a2a4a972eb0bf4f9042364b5",
+          "size": 8093
+        },
+        {
+          "path": "lib/mime.py",
+          "sha256": "a8d93490534ee68c25d025ad2794c5d23cc8a4946594ca01f5da1ce0feaa1a8b",
+          "size": 4245
+        },
+        {
+          "path": "lib/runtime.py",
+          "sha256": "49b424025bd89593e80390e34fa61d57f9b97a9f1e4c85f5eeb5edfd56fc7b42",
+          "size": 7243
+        },
+        {
+          "path": "lib/store.py",
+          "sha256": "c958267a2830ee9eea0e9b251a1e1ea0d34cca539e583190c432905c55dd636a",
+          "size": 12826
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "d4e3f2cfb07e93657925b4680a5753051b32f7a6561685c2839d9abcf9165ef1",
+          "size": 7625
+        },
+        {
+          "path": "scripts/email_daemon.py",
+          "sha256": "803b54f7b19a03d86db5e1e40b930ed67efbc9f002274b3d665fa3df6a978b82",
+          "size": 1486
+        },
+        {
+          "path": "tests/test_auth.py",
+          "sha256": "421dc29db26086515ad15116d2bde0be88e1b4148845079ea40ed5712b057d0d",
+          "size": 2066
+        },
+        {
+          "path": "tests/test_host_adapter.py",
+          "sha256": "c6cf80c86a7c5528572bb244eb44bb73d675121b1cc6e0f7d50bd3fdeea74f36",
+          "size": 1877
+        },
+        {
+          "path": "tests/test_mime.py",
+          "sha256": "658c33bc058ff1b2e703a336dbe37d71654d66c6fc64962ef7a5190c41368417",
+          "size": 1310
+        },
+        {
+          "path": "tests/test_plugin.py",
+          "sha256": "b178f0f4d9ce53d504c98878060577a686451b2fb32eca984da5e311bbe764a7",
+          "size": 1793
+        },
+        {
+          "path": "tests/test_store.py",
+          "sha256": "d395d4073f4412682be41bf2c686b989dc3ffca20de66be83fb6c97126204ec8",
+          "size": 914
+        },
+        {
+          "path": "tests/test_transport.py",
+          "sha256": "141720adb1e99ec0711163d55dbf4df299da836438e8a754e27a064c70c93261",
+          "size": 10855
+        }
+      ],
+      "description": "Bidirectional email Presence transport with IMAP polling, durable delivery, and RFC 5322 reply threading."
+    },
+    {
+      "slug": "telegram-bot",
+      "name": "telegram-bot",
+      "version": "0.2.0",
+      "type": "extension",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "79566494109e271204e663f1baf591c1bebac371eab417cad867a3715ef652b1",
+          "size": 6442
+        },
+        {
+          "path": "plugin.py",
+          "sha256": "d5bea2039055bcc974f46eeef75eee5c86204aedff1e1ee425a674ef22c1d7e3",
+          "size": 13807
+        },
+        {
+          "path": "telegram_bot/__init__.py",
+          "sha256": "9fc56903a2bc6198e49b95d019175d2739f08c82f28d4465fcfc6e5ca7e57f99",
+          "size": 205
+        },
+        {
+          "path": "telegram_bot/api.py",
+          "sha256": "4aed19967c3d5c2e363f52cfd461bce082b5835ceada13991f76495acf210353",
+          "size": 13684
+        },
+        {
+          "path": "telegram_bot/custody.py",
+          "sha256": "42b70598a31cc1338ea199dc587eefcc829382f142d0be8aff6b19e432d652ee",
+          "size": 23450
+        },
+        {
+          "path": "telegram_bot/events.py",
+          "sha256": "0b64a390f654fd19acbad8ab112b7adebc944d35a14a00d6d2884d0cd8b4c601",
+          "size": 5368
+        },
+        {
+          "path": "telegram_bot/host.py",
+          "sha256": "8995a34de5b4edcdf1ab76217fb54bf290fb116687da96de0501e5b0066bb2a0",
+          "size": 8798
+        },
+        {
+          "path": "telegram_bot/runtime.py",
+          "sha256": "5ae41bd11c77c904bc6b4c6feac04393c3b7bc002acaff0c43adf0a7872d30ec",
+          "size": 15836
+        },
+        {
+          "path": "telegram_bot/tools.py",
+          "sha256": "a5c80fe2b1f23db24ebd202a7055b62802210bdb0add8195101eef02eccf7263",
+          "size": 5569
+        },
+        {
+          "path": "tests/conftest.py",
+          "sha256": "8078258e03839bb1d325f812bb83839aa3b905c12ebcabe35945a13eb736b0af",
+          "size": 236
+        },
+        {
+          "path": "tests/test_api.py",
+          "sha256": "38713ae68ee4bb4d9de3b57b619604d88ad8f7fde580c15850356ec56bb6ac70",
+          "size": 2628
+        },
+        {
+          "path": "tests/test_custody.py",
+          "sha256": "f1eb717a0b5058945702f8648a67f741c27076a246e5bbdc259d79cb28950b20",
+          "size": 7472
+        },
+        {
+          "path": "tests/test_events.py",
+          "sha256": "514aca0bf5689441a76dbc681fe3c6d0b8f2893e51c12e125afb819a6bf61e07",
+          "size": 3923
+        },
+        {
+          "path": "tests/test_host.py",
+          "sha256": "b3c39e4071d1af222fd2ce4ee72175207189f0321a2e4c90f226fbf665371ebd",
+          "size": 4880
+        },
+        {
+          "path": "tests/test_moderation.py",
+          "sha256": "9e2bfdb1f32deb871d4ecd80925ba31cd7334170db7344be7ba4bd196cfbeb77",
+          "size": 4047
+        },
+        {
+          "path": "tests/test_plugin.py",
+          "sha256": "9be6e7fc7c6e8c55187f3a78568fd3144727c97c0c46bb7252a26b45f4fa9f9b",
+          "size": 5696
+        },
+        {
+          "path": "tests/test_runtime.py",
+          "sha256": "e4600aaf0acc4756c60242df6d724af49dc8fe89d4d2514b45628d3f83516a5c",
+          "size": 14791
+        }
+      ],
+      "description": "Durable Telegram transport for generic Ouroboros presences, with exact actor and conversation provenance, media staging, and provider receipts."
+    },
+    {
       "slug": "slack-bridge",
       "name": "slack-bridge",
       "version": "1.0.0",
