@@ -1382,18 +1382,28 @@
     {
       "slug": "telegram-bot",
       "name": "telegram-bot",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "type": "extension",
       "files": [
         {
+          "path": "FORMATTER_PROVENANCE.md",
+          "sha256": "c8813153c8dc88e4785acd6de68aeec30a877d4af3e632037232f5371de51f77",
+          "size": 1162
+        },
+        {
+          "path": "LICENSE.formatting",
+          "sha256": "471f75bc6ef38333696dd6549c4355adef05291a74135649131f0a5728f5a45c",
+          "size": 1073
+        },
+        {
           "path": "SKILL.md",
-          "sha256": "79566494109e271204e663f1baf591c1bebac371eab417cad867a3715ef652b1",
-          "size": 6442
+          "sha256": "1f933ae112bdbe32dcc1a5a7146014a9799a82bbfa9fa27cc08a1fa56f1dd231",
+          "size": 8110
         },
         {
           "path": "plugin.py",
-          "sha256": "d5bea2039055bcc974f46eeef75eee5c86204aedff1e1ee425a674ef22c1d7e3",
-          "size": 13807
+          "sha256": "acc476c4bf9e4f8aec4ae6979162343d2ec40b756327eb663cc12f9925bf042e",
+          "size": 15385
         },
         {
           "path": "telegram_bot/__init__.py",
@@ -1402,18 +1412,23 @@
         },
         {
           "path": "telegram_bot/api.py",
-          "sha256": "4aed19967c3d5c2e363f52cfd461bce082b5835ceada13991f76495acf210353",
-          "size": 13684
+          "sha256": "c92b5d71a37808416930fc72338accd7d17a476b3f960fda55361acc36ac30ec",
+          "size": 15895
         },
         {
           "path": "telegram_bot/custody.py",
-          "sha256": "42b70598a31cc1338ea199dc587eefcc829382f142d0be8aff6b19e432d652ee",
-          "size": 23450
+          "sha256": "7a32eba5ac690d507f9dfaf9fb90c1aec09b649f98de99fccb73e850c88b0d76",
+          "size": 23566
         },
         {
           "path": "telegram_bot/events.py",
           "sha256": "0b64a390f654fd19acbad8ab112b7adebc944d35a14a00d6d2884d0cd8b4c601",
           "size": 5368
+        },
+        {
+          "path": "telegram_bot/formatting.py",
+          "sha256": "92d054215be5e69a9e247930e675894706aa38465af8890f9dad46cf609447b4",
+          "size": 19417
         },
         {
           "path": "telegram_bot/host.py",
@@ -1422,8 +1437,8 @@
         },
         {
           "path": "telegram_bot/runtime.py",
-          "sha256": "5ae41bd11c77c904bc6b4c6feac04393c3b7bc002acaff0c43adf0a7872d30ec",
-          "size": 15836
+          "sha256": "a2c221d95eac7ed503d06c150da4f4f84eeeed1a93babee1a2bc2311334fdda6",
+          "size": 16686
         },
         {
           "path": "telegram_bot/tools.py",
@@ -1451,6 +1466,16 @@
           "size": 3923
         },
         {
+          "path": "tests/test_formatted_delivery.py",
+          "sha256": "d2976fd2de849818074d6f3418def7aea08a0e311c6bff1e51010f63294c195d",
+          "size": 11664
+        },
+        {
+          "path": "tests/test_formatting.py",
+          "sha256": "125b168b28a88acff3eca354af45f900ec8091a673d55e8e17a07df13bee4525",
+          "size": 3067
+        },
+        {
           "path": "tests/test_host.py",
           "sha256": "b3c39e4071d1af222fd2ce4ee72175207189f0321a2e4c90f226fbf665371ebd",
           "size": 4880
@@ -1462,13 +1487,13 @@
         },
         {
           "path": "tests/test_plugin.py",
-          "sha256": "9be6e7fc7c6e8c55187f3a78568fd3144727c97c0c46bb7252a26b45f4fa9f9b",
-          "size": 5696
+          "sha256": "3af2ee40e26d24f75a1bd358f1b45f63a5f55a9104fc09b7203a10ba4cb9132c",
+          "size": 5793
         },
         {
           "path": "tests/test_runtime.py",
-          "sha256": "e4600aaf0acc4756c60242df6d724af49dc8fe89d4d2514b45628d3f83516a5c",
-          "size": 14791
+          "sha256": "03425c0cc62024a009469cf9edd2d6b3e0b5ac6ea684378df860ec975d2339b4",
+          "size": 15203
         }
       ],
       "description": "Durable Telegram transport for generic Ouroboros presences, with exact actor and conversation provenance, media staging, and provider receipts."

@@ -61,6 +61,15 @@ class RuntimeClient(TelegramClient):
         self.sent.append(("message", chat_id, text, kwargs))
         return [{"message_id": 1}]
 
+    async def send_text_chunk(self, chat_id, text, **kwargs):
+        return (await self.send_message(chat_id, text, **kwargs))[0]
+
+    async def send_media(self, kind, chat_id, file_path, *, prepared_caption, **kwargs):
+        method = self.send_photo if kind == "photo" else self.send_document
+        return await method(
+            chat_id, file_path, caption=prepared_caption["text"], **kwargs
+        )
+
     async def send_photo(self, chat_id, file_path, **kwargs):
         self.sent.append(("photo", chat_id, str(file_path), kwargs))
         return {"message_id": 2}
@@ -432,15 +441,15 @@ def test_long_text_retry_keeps_confirmed_chunks_after_restart(tmp_path):
 
         first = runtime()
         first.store.enqueue_outbox(
-            "long", {"kind": "message", "chat_id": "1", "text": "a" * 4000 + "b" * 100}
+            "long", {"kind": "message", "chat_id": "1", "text": "a" * 4096 + "b" * 100}
         )
         assert await first.process_one_outbox()
-        assert [entry[2] for entry in client.sent] == ["a" * 4000]
+        assert [entry[2] for entry in client.sent] == ["a" * 4096]
         with sqlite3.connect(first.store.path) as conn:
             conn.execute("UPDATE outbox SET available_at=0 WHERE delivery_id='long'")
         resumed = runtime()
         assert await resumed.process_one_outbox()
-        assert [entry[2] for entry in client.sent] == ["a" * 4000, "b" * 100]
+        assert [entry[2] for entry in client.sent] == ["a" * 4096, "b" * 100]
         assert (
             len(resumed.store.delivery_receipt("long")["provider_receipt"]["messages"])
             == 2

@@ -9,6 +9,7 @@ import re
 from typing import Any, Callable, Dict, List, Optional, Protocol, Sequence
 
 from .api import TelegramClient, _split_text
+from .formatting import prepare_text, prepare_caption
 from .custody import CustodyStore, InboxLease, OutboxLease
 from .events import parse_telegram_update
 from .host import PresenceHostHTTPError, PresenceSubmission, PresenceWorkResult
@@ -355,16 +356,34 @@ async def _deliver(
     topic_id = _optional_int(payload.get("topic_id"))
     reply_id = _optional_int(payload.get("reply_to_message_id"))
     if kind == "message":
-        chunks = _split_text(str(payload.get("text") or ""), 4000)
         messages = list(payload.get("_sent_messages") or [])
+        chunks = payload.get("_rendered_chunks")
+        if chunks is None:
+            # Rows from before formatting retain literal presentation. If some
+            # chunks were already delivered, retain the exact old split too.
+            chunks = (
+                [
+                    {"text": chunk, "parse_mode": ""}
+                    for chunk in _split_text(str(payload.get("text") or ""), 4000)
+                ]
+                if messages
+                else prepare_text(
+                    str(payload.get("text") or ""),
+                    markdown=payload.get("markdown", False),
+                )
+            )
+            payload = {**payload, "_rendered_chunks": chunks}
+            store.checkpoint_outbox(lease.delivery_id, payload)
         for index in range(len(messages), len(chunks)):
-            results = await client.send_message(
+            chunk = chunks[index]
+            result = await client.send_text_chunk(
                 chat_id,
-                chunks[index],
+                chunk["text"],
+                parse_mode=chunk["parse_mode"],
                 topic_id=topic_id,
                 reply_to_message_id=reply_id if index == 0 else None,
             )
-            messages.extend(results)
+            messages.append(result)
             store.checkpoint_outbox(
                 lease.delivery_id, {**payload, "_sent_messages": messages}
             )
@@ -374,26 +393,24 @@ async def _deliver(
             str(payload["action"]), dict(payload["parameters"])
         )
         return {"kind": kind, "action": payload["action"], "result": result}
-    file_path = pathlib.Path(str(payload.get("file_path") or ""))
-    caption = str(payload.get("caption") or "")
-    if kind == "photo":
-        result = await client.send_photo(
-            chat_id,
-            file_path,
-            caption=caption,
-            topic_id=topic_id,
-            reply_to_message_id=reply_id,
-        )
-    elif kind == "document":
-        result = await client.send_document(
-            chat_id,
-            file_path,
-            caption=caption,
-            topic_id=topic_id,
-            reply_to_message_id=reply_id,
-        )
-    else:
+    if kind not in {"photo", "document"}:
         raise ValueError(f"unsupported Telegram outbox kind: {kind}")
+    caption = payload.get("_rendered_caption")
+    if caption is None:
+        caption = prepare_caption(
+            str(payload.get("caption") or ""), markdown=payload.get("markdown", False)
+        )
+        store.checkpoint_outbox(
+            lease.delivery_id, {**payload, "_rendered_caption": caption}
+        )
+    result = await client.send_media(
+        kind,
+        chat_id,
+        pathlib.Path(str(payload.get("file_path") or "")),
+        prepared_caption=caption,
+        topic_id=topic_id,
+        reply_to_message_id=reply_id,
+    )
     return {"kind": kind, "message": result}
 
 
