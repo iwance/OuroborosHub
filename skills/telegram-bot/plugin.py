@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from starlette.responses import JSONResponse
 
 from .telegram_bot.custody import CustodyStore
+from .telegram_bot.formatting import prepare_text, prepare_caption
 from .telegram_bot.host import PresenceHostClient
 from .telegram_bot.runtime import TelegramTransportRuntime
 from .telegram_bot.tools import (
@@ -192,6 +193,7 @@ def _make_telegram_send(api: Any):
         topic_id: str = "",
         reply_to_message_id: str = "",
         request_id: str = "",
+        markdown: bool = True,
     ) -> Dict[str, Any]:
         target = str(chat_id or "").strip()
         selected_kind = str(kind or "message").strip()
@@ -202,7 +204,13 @@ def _make_telegram_send(api: Any):
             }
         if selected_kind not in {"message", "photo", "document"}:
             return {"ok": False, "error": "kind must be message, photo, or document"}
-        payload: Dict[str, Any] = {"kind": selected_kind, "chat_id": target}
+        if not isinstance(markdown, bool):
+            return {"ok": False, "error": "markdown must be a boolean"}
+        payload: Dict[str, Any] = {
+            "kind": selected_kind,
+            "chat_id": target,
+            "markdown": markdown,
+        }
         if topic_id not in (None, ""):
             payload["topic_id"] = str(topic_id).strip()
         if reply_to_message_id not in (None, ""):
@@ -211,12 +219,19 @@ def _make_telegram_send(api: Any):
             if not str(text or "").strip():
                 return {"ok": False, "error": "text is required for a message"}
             payload["text"] = str(text)
+            payload["_rendered_chunks"] = prepare_text(str(text), markdown=markdown)
         else:
             path = pathlib.Path(str(file_path or "")).expanduser()
             if not path.is_file():
                 return {"ok": False, "error": "file_path must name an existing file"}
             payload["file_path"] = str(path.resolve())
             payload["caption"] = str(caption or text or "")
+            try:
+                payload["_rendered_caption"] = prepare_caption(
+                    payload["caption"], markdown=markdown
+                )
+            except ValueError as exc:
+                return {"ok": False, "error": str(exc)}
         receipt = str(request_id or uuid.uuid4().hex).strip()
         inserted = CustodyStore(
             pathlib.Path(api.get_state_dir()) / "custody.sqlite3"
@@ -338,19 +353,35 @@ def register(api: Any) -> None:
         _make_telegram_send(api),
         description=(
             "Durably queue a proactive Telegram text, photo, or document for an exact numeric "
-            "chat, with optional topic and reply ids."
+            "chat, with optional topic and reply ids. Standard Markdown is rendered by default; "
+            "set markdown=false for literal text. text/caption contain only display content. "
+            "Pass request_id as its own argument, not XML or text inside the caption."
         ),
         schema={
             "type": "object",
             "properties": {
                 "chat_id": {"type": "string"},
-                "text": {"type": "string"},
+                "text": {
+                    "type": "string",
+                    "description": "Displayed message content only; standard Markdown unless markdown=false.",
+                },
                 "kind": {"type": "string", "enum": ["message", "photo", "document"]},
                 "file_path": {"type": "string"},
-                "caption": {"type": "string"},
+                "caption": {
+                    "type": "string",
+                    "description": "Displayed media caption only, up to 1024 UTF-16 units after formatting. Tool fields belong in separate arguments.",
+                },
+                "markdown": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Render standard Markdown; false preserves literal punctuation and XML.",
+                },
                 "topic_id": {"type": "string"},
                 "reply_to_message_id": {"type": "string"},
-                "request_id": {"type": "string"},
+                "request_id": {
+                    "type": "string",
+                    "description": "Separate stable deduplication key; reuse the same value for the same logical send.",
+                },
             },
             "required": ["chat_id", "kind"],
         },

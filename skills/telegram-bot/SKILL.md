@@ -2,7 +2,7 @@
 name: telegram-bot
 description: Durable Telegram transport for generic Ouroboros presences, with exact actor and conversation
   provenance, media staging, and provider receipts.
-version: 0.2.0
+version: 0.2.1
 type: extension
 plugin_api: '2.0'
 runtime: python3
@@ -173,3 +173,32 @@ interruption after Telegram accepts a request but before the receipt is stored
 can still cause a repeated send; no provider-side exactly-once guarantee is
 claimed. Telegram's deletion window, bot rights, file limits and member-operation
 rules remain provider constraints: https://core.telegram.org/bots/api.
+
+## Message formatting
+
+Text and media captions use the native Telegram skill's reviewed Markdown-to-HTML
+presentation helpers included in this payload. Bold, links, lists, code and
+bounded monospace tables render without exposing Markdown markers. Set
+`markdown: false` on `telegram_send` when punctuation or XML must stay literal.
+Automatic Presence replies use Markdown; for an explicitly literal reply, use
+`telegram_send` with that flag and finish with `tool_delivered`.
+
+Use `text` and `caption` only for the content people should see. Other arguments
+are separate JSON fields, for example:
+
+```json
+{"chat_id":"-10042","kind":"document","file_path":"/selected/workspace/report.pdf","caption":"**Report** with [sources](https://example.org)","request_id":"report-v1","markdown":true}
+```
+
+The transport does not remove XML-looking text or infer tool arguments from
+captions. A caption above 1024 visible UTF-16 units returns an explicit error:
+shorten it and send the remainder separately. It is never silently truncated.
+
+New text deliveries freeze their rendered, block-aware chunks in the durable
+outbox. Retries preserve exact chunk boundaries, thread/reply IDs and confirmed
+receipts. Existing queued rows keep literal presentation; an already partially
+delivered legacy row also keeps its original chunk boundaries. Only an explicit
+Telegram 400 rejection of an HTML send permits an immediate plain-text fallback;
+a timeout or unknown network response never triggers that fallback. The ordinary
+bounded outbox retry policy and its documented unknown-acceptance duplicate risk
+remain unchanged. See `FORMATTER_PROVENANCE.md` for the included helper source.

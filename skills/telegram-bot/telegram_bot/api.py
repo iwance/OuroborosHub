@@ -11,6 +11,8 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Protocol
 
+from .formatting import prepare_text, prepare_caption, _telegram_html_to_plain
+
 
 _MAX_DOWNLOAD_BYTES = 20 * 1024 * 1024
 _MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -186,19 +188,51 @@ class TelegramClient:
         chat_id: str,
         text: str,
         *,
+        markdown: bool = True,
         topic_id: Optional[int] = None,
         reply_to_message_id: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         receipts = []
-        for index, chunk in enumerate(_split_text(str(text), 4000)):
-            payload: Dict[str, Any] = {"chat_id": str(chat_id), "text": chunk}
-            if topic_id is not None:
-                payload["message_thread_id"] = int(topic_id)
-            if index == 0 and reply_to_message_id is not None:
-                payload["reply_parameters"] = {"message_id": int(reply_to_message_id)}
-            result = await self._call("sendMessage", payload)
-            receipts.append(result if isinstance(result, dict) else {})
+        for index, chunk in enumerate(prepare_text(str(text), markdown=markdown)):
+            receipts.append(
+                await self.send_text_chunk(
+                    chat_id,
+                    chunk["text"],
+                    parse_mode=chunk["parse_mode"],
+                    topic_id=topic_id,
+                    reply_to_message_id=reply_to_message_id if index == 0 else None,
+                )
+            )
         return receipts
+
+    async def send_text_chunk(
+        self,
+        chat_id: str,
+        text: str,
+        *,
+        parse_mode: str = "",
+        topic_id: Optional[int] = None,
+        reply_to_message_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Send one already prepared chunk; never split or render it again."""
+        payload: Dict[str, Any] = {"chat_id": str(chat_id), "text": text}
+        if topic_id is not None:
+            payload["message_thread_id"] = int(topic_id)
+        if reply_to_message_id is not None:
+            payload["reply_parameters"] = {"message_id": int(reply_to_message_id)}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        try:
+            result = await self._call("sendMessage", payload)
+        except TelegramApiError as exc:
+            # A definitive negative 400 response permits a plain retry. A timeout
+            # or unknown response never triggers a second physical send here.
+            if parse_mode != "HTML" or exc.error_code != 400:
+                raise
+            payload.pop("parse_mode", None)
+            payload["text"] = _telegram_html_to_plain(text)
+            result = await self._call("sendMessage", payload)
+        return result if isinstance(result, dict) else {}
 
     async def send_photo(
         self,
@@ -206,15 +240,15 @@ class TelegramClient:
         file_path: pathlib.Path,
         *,
         caption: str = "",
+        markdown: bool = True,
         topic_id: Optional[int] = None,
         reply_to_message_id: Optional[int] = None,
     ) -> Dict[str, Any]:
-        return await self._send_file(
-            "sendPhoto",
+        return await self.send_media(
             "photo",
             chat_id,
             file_path,
-            caption=caption,
+            prepared_caption=prepare_caption(caption, markdown=markdown),
             topic_id=topic_id,
             reply_to_message_id=reply_to_message_id,
         )
@@ -225,15 +259,15 @@ class TelegramClient:
         file_path: pathlib.Path,
         *,
         caption: str = "",
+        markdown: bool = True,
         topic_id: Optional[int] = None,
         reply_to_message_id: Optional[int] = None,
     ) -> Dict[str, Any]:
-        return await self._send_file(
-            "sendDocument",
+        return await self.send_media(
             "document",
             chat_id,
             file_path,
-            caption=caption,
+            prepared_caption=prepare_caption(caption, markdown=markdown),
             topic_id=topic_id,
             reply_to_message_id=reply_to_message_id,
         )
@@ -250,34 +284,52 @@ class TelegramClient:
             raise ValueError("unsupported Telegram moderation action")
         return bool(await self._call(endpoint, parameters))
 
-    async def _send_file(
+    async def send_media(
         self,
-        endpoint: str,
-        file_field: str,
+        kind: str,
         chat_id: str,
         file_path: pathlib.Path,
         *,
-        caption: str,
-        topic_id: Optional[int],
-        reply_to_message_id: Optional[int],
+        prepared_caption: Dict[str, str],
+        topic_id: Optional[int] = None,
+        reply_to_message_id: Optional[int] = None,
     ) -> Dict[str, Any]:
+        """Send a photo/document with a frozen caption and exact reply provenance."""
+        endpoint = {"photo": "sendPhoto", "document": "sendDocument"}.get(kind)
+        if endpoint is None:
+            raise ValueError(f"unsupported Telegram media kind: {kind}")
         fields = {"chat_id": str(chat_id)}
+        caption = prepared_caption["text"]
+        parse_mode = prepared_caption["parse_mode"]
         if caption:
-            fields["caption"] = str(caption)
+            fields["caption"] = caption
+            if parse_mode:
+                fields["parse_mode"] = parse_mode
         if topic_id is not None:
             fields["message_thread_id"] = str(int(topic_id))
         if reply_to_message_id is not None:
             fields["reply_parameters"] = json.dumps(
                 {"message_id": int(reply_to_message_id)}
             )
-        response = await self._transport.post_multipart(
-            self._endpoint(endpoint),
-            fields,
-            file_field,
-            pathlib.Path(file_path),
-            60.0,
-        )
-        return self._result(endpoint, response)
+
+        async def post() -> Dict[str, Any]:
+            response = await self._transport.post_multipart(
+                self._endpoint(endpoint),
+                fields,
+                kind,
+                pathlib.Path(file_path),
+                60.0,
+            )
+            return self._result(endpoint, response)
+
+        try:
+            return await post()
+        except TelegramApiError as exc:
+            if not caption or parse_mode != "HTML" or exc.error_code != 400:
+                raise
+            fields.pop("parse_mode", None)
+            fields["caption"] = _telegram_html_to_plain(caption)
+            return await post()
 
     async def _call(
         self,

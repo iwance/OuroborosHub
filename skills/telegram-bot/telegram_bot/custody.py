@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, Optional
 
 from .events import TelegramEvent
+from .formatting import prepare_text
 
 
 @dataclass(frozen=True)
@@ -591,6 +592,8 @@ def _reply_payload(event: Dict[str, Any], text: str) -> Dict[str, Any]:
         "kind": "message",
         "chat_id": str(event.get("conversation_id") or ""),
         "text": str(text),
+        "markdown": True,
+        "_rendered_chunks": prepare_text(str(text)),
     }
     thread_id = str(event.get("thread_id") or "").strip()
     if thread_id:
